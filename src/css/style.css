@@ -1,0 +1,359 @@
+body {
+    background: #b97cb9;
+    padding-block: 0px;
+    display: grid;
+}
+
+main {
+    padding-left: 200px;
+    padding-right: 200px;
+}
+
+.iconos-busqueda {
+    width: 20px;
+    height: 20px
+}
+
+.lista-header {
+    display: contents;
+}
+
+.header-pagprincipal {
+    background-color: #e2c5e2;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #583756;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.nav-pagprincipal {
+    display: flex;
+    justify-content: space-between;
+}
+
+.nav-pagprincipal {
+    display: flex;
+    gap: 20px;
+    flex: 1;
+}
+
+.nav-pagprincipal a {
+    text-decoration: none;
+    color: #361c34;
+    font-weight: 500;
+    padding: 8px 12px;
+    transition: color 0.3s;
+    font-family: 'Segoe UI', sans-serif;  
+    font-size: 1rem;                      
+    font-weight: bold;                    
+    text-transform: uppercase;            
+    letter-spacing: 1px;                                        
+    transition: color 0.3s ease;
+}
+
+.nav-pagprincipal a:hover {
+    color: #cb4a37;
+    border-bottom: 2px solid #e2c5e2;
+}
+.nav-prinpal:active{
+    color: #a5c6eb;
+}
+
+.botoniniciar {
+    display: flex;
+    gap: 10px;
+}
+
+.botoniniciar {
+    padding: 8px 16px;
+    background-color: #e2c5e2;
+    color: #2e4072;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.3s;
+    transition: transform 0.4s ease;
+
+}
+
+.botoniniciar:hover {
+    background-color: #583756;
+    color: #eedfef;
+    transform: scale(1.05) translate(-5px);
+    border: solid 1px #361c34;
+}
+
+.botonregistrar {
+    display: flex;
+    gap: 10px;
+    padding: 8px 16px;
+    background-color: #361c34;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.3s;
+    transition: transform 0.4s ease;
+}
+
+.botonregistrar:hover {
+    background-color: #fbe8e5;
+    color: #361c34;
+    transform: scale(1.05) translate(5px);
+    border: solid 1px #361c34;
+}
+
+.logo {
+    width: 6rem;
+    height: auto;
+    padding-right: 1rem;
+    transition: transform 0.4s ease;
+}
+
+.logo:hover {
+    cursor: pointer;
+    transform: scale(1.40);
+}
+
+.botones-header {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    padding: 5px;
+
+}
+
+.iconos-busqueda {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    padding: 5px;
+    background-color: #d0a2d0;
+    border-radius: 8px;
+}
+
+.targeta-busqueda {
+    display: flex;
+    flex-direction: column;
+    justify-self: center;
+    gap: 20px;
+    padding: 10px;
+}
+
+.campos-busqueda {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    padding: 5px;
+    background-color: #d0a2d0;
+    border-radius: 8px;
+}
+
+.boton-buscar {
+    gap: 5px;
+    background-color: #361c34;
+    border-radius: 8px;
+    justify-self: center;
+    color: #d0a2d0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+
+}
+
+.boton-buscar:hover {
+    background-color: #d0a2d0;
+    transform: scale(1.05);
+    border: solid 1px #361c34;
+    transition: background 0.3s;
+    color: #361c34;
+
+}
+
+.input-busqueda {
+    width: 100%;
+    max-width: 300px;
+    padding: 10px 15px;
+    border: 2px solid #e2c5e2;
+    border-radius: 8px;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    text-align: center;
+    align-self: center
+}
+
+.input-busqueda:focus {
+    border-color: #693f67;
+    box-shadow: 0 0 5px rgba(54, 28, 52, 0.5);
+}
+
+.datepicker-container {
+    display: flex;
+    align-self: center;
+    gap: 5px;
+    align-items: center;
+    padding: 5px;
+    background-color: #d0a2d0;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.datePickerBtn {
+    text-align: center;
+}
+
+.datePickerBtn:focus {
+    border-color: #693f67;
+    box-shadow: 0 0 5px rgba(54, 28, 52, 0.5);
+}
+
+.seccion-destinos {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px;
+    background-color: #d0a2d0;
+    border-radius: 8px;
+    margin-top: 20px;
+    height: auto;
+    width: auto;
+}
+
+.titulo-destinos {
+    text-align: center;
+}
+
+.parrafo-pagprincipal {
+    text-align: center;
+    font-size: 1.2rem;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    color: #361c34;
+}
+
+.titulo-pagprincipal {
+    text-align: center;
+    font-size: 2rem;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    color: #361c34;
+}
+
+.texto-destino {
+    text-align: center;
+    font-size: 1.2rem;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    color: #361c34;
+
+}
+
+.destinos-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 20px;
+    align-self: center;
+    background-color: #9b5e99;
+    box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+
+}
+
+.precio {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 8px 12px;
+    color: #f7eff8;
+    font-weight: bold;
+    border-radius: 5px;
+}
+
+.boton-detalles {
+    background-color: #583756;
+    color: #e2c5e2;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: bold;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.boton-detalles:hover {
+    background-color: #361c34;
+    transform: scale(1.05);
+}
+
+.texto-targeta {
+    color: #e2c5e2;
+    font-size: 1rem;
+    text-align: center;
+}
+
+.titulo-targetas {
+    font-size: 2rem;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    color: #361c34;
+}
+
+.imagen-targeta {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    display: block;
+    object-fit: cover;
+}
+
+.destino-item {
+    text-align: center;
+}
+
+.lista {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+.footer-pagprincipal {
+    color: #361c34;
+    padding: 20px;
+    text-align: center;
+    position: relative;
+    bottom: 0;
+    margin-top: auto;
+}
+
+.enlaces-header {
+    color: white;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 1rem;
+    transition: color 0.3s, border-bottom 0.3s;
+}
+
+.enlaces-header:hover {
+    color: #e2c5e2;
+    border-bottom: 2px solid #e2c5e2;
+}
+
+.enlaces-header {
+    color: #e2c5e2;
+    border-bottom: 2px solid #e2c5e2;
+}

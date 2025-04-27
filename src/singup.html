@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Registro</title>
+    <link rel="stylesheet" href="/src/css/singup.css" />
+  </head>
+  <body>
+    <div class="signup-container">
+      <h1>Crear cuenta</h1>
+      <form id="signupForm">
+        <label for="fullName">Nombre completo</label>
+        <input type="text" id="fullName" required />
+
+        <label for="documentType">Tipo de documento</label>
+        <select id="documentType" required>
+          <option value="">Selecciona...</option>
+          <option value="cc">Cédula de ciudadanía</option>
+          <option value="ce">Cédula de extranjería</option>
+          <option value="ti">Tarjeta de identidad</option>
+          <option value="pasaporte">Pasaporte</option>
+        </select>
+
+        <label for="documentNumber">Número de documento</label>
+        <input type="text" id="documentNumber" required />
+
+        <label for="birthDate">Fecha de nacimiento</label>
+        <input type="date" id="birthDate" required />
+
+        <button type="submit" class="btn">Registrarse</button>
+      </form>
+
+      <div class="extra-buttons">
+        <button onclick="location.href='login.html'" class="btn secondary">
+          Ya tengo cuenta
+        </button>
+        <button onclick="location.href='principal.html'" class="btn secondary">
+          Volver al inicio
+        </button>
+      </div>
+    </div>
+
+    <script src="/src/js/singup.js"></script>
+  </body>
+</html>

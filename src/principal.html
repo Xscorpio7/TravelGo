@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TravelGo</title>
+    <link rel="icon" href="/image/logo_TravelGo.png" type="image"/>
+    <link rel="stylesheet" href="/src/css/style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poetsen+One&display=swap"
+      rel="stylesheet"/>
+      <link rel="stylesheet" href="/src/css/calendario.css">
+      <link rel="stylesheet" href="/src/css/tarjetas.css">
+  </head>
+  <body>
+    <header class="header-pagprincipal">
+      <img src="/image/logo_TravelGo.png" alt="Travel Go" class="logo" href="principal.html"/>
+      <nav class="nav-pagprincipal">
+        <ul class="lista-header">
+          <a class="enlaces-header" target="_blank" href="#">Destino</a></li>
+          <a class="enlaces-header" target="_blank"  href="#">Ofertas</a></li>
+          <a class="enlaces-header" target="_blank"  href="#">sobre Nosotros</a></li>
+          <a target="_blank"  href="#">Contacto</a></li>
+        </ul>
+        <div class="botones-header">
+          <button class="botoniniciar" onclick="location.href='/src/login.html'">Inicia sesión</button>
+          <button class="botonregistrar" onclick="location.href='/src/singup.html'">Registrarse</button>
+      </div>
+      </nav>
+    </header>
+    <main>
+      <h1 class="titulo-pagprincipal">Bienvenido a TravelGo</h1>
+      <p class="parrafo-pagprincipal">
+        Encuentra los mejores destinos, hoteles y experiencias para tu próximo viaje.
+      </p>
+      <section class="targeta-busqueda">
+        <div class="iconos-busqueda">
+          <img class="iconos-busqueda"src="/image/avion.png" alt="avion"/>
+          <img class="iconos-busqueda"src="/image/hotel.png" alt="hotel"/>
+          <img class="iconos-busqueda"src="/image/coche.png" alt="auto" />
+        </div>
+        <div class="campos-busqueda">
+        <input class="input-busqueda" type="text" placeholder="Ciudad de Origen">
+        <input class="input-busqueda" type="text" placeholder="Ciudad de Destino">
+      </div>
+      <div class="datepicker-container">
+        <button id="datePickerBtn" class="date-btn">Seleccionar fechas </button>
+        <div id="calendarContainer" class="calendar hidden"></div>
+      </div>
+      <input class="input-busqueda" type="text" placeholder="Número de Pasajeros" />
+          </section>
+          <button class="boton-buscar">Buscar</button>
+      <section class="seccion-destinos">
+        <h2 class="titulo-destinos">Destinos Populares</h2>
+        <p class="texto-destino">Explora nuestros destinos más populares y encuentra tu próxima aventura.</p>
+        <div class="lista">
+        <div class="destinos-lista">
+          <div class="destino-item">
+            <img class="imagen-targeta" src="/image/paris.jpg" alt="Destino 1" />
+            <h3 class="titulo-targetas">París, Francia</h3>
+            <p class="texto-targeta">La ciudad del amor y la luz </p>
+            <span class="precio">$849 USD</span>
+            <button class="boton-detalles">Ver detalles</button>
+          </div>
+        </div>
+        <div class="destinos-lista">
+          <div class="destino-item">
+            <img class="imagen-targeta"  src="/image/tokio.jpg" 
+        alt="Destino 2" />
+            <h3 class="titulo-targetas">Tokio, Japon</h3>
+            <p class="texto-targeta">Tradición y modernidad en perfecta armonía </p>
+            <span class="precio">$1,099</span>
+            <button class="boton-detalles">Ver detalles</button>
+          </div>
+        </div>
+        <div class="destinos-lista">
+          <div class="destino-item">
+            <img class="imagen-targeta" src="/image/paris.jpg" 
+        alt="Destino 1" />
+            <h3 class="titulo-targetas">Cancún, México</h3>
+            <p class="texto-targeta">Playas de arena blanca y aguas cristalinas </p>
+            <span class="precio">$599 USD</span>
+            <button class="boton-detalles">Ver detalles</button>
+          </div>
+        </div>
+          <div class="destinos-lista">
+            <div class="destino-item">
+              <img class="imagen-targeta" src="/image/paris.jpg" 
+          alt="Destino 1" />
+              <h3 class="titulo-targetas">Barcelona, España</h3>
+              <p class="texto-targeta">Arte, arquitectura y vida nocturna</p>
+              <span class="precio">$799 USD</span>
+              <button class="boton-detalles">Ver detalles</button>
+            </div>
+          </div>
+          <div class="destinos-lista">
+            <div class="destino-item">
+              <img class="imagen-targeta" src="/image/paris.jpg" 
+          alt="Destino 1" />
+              <h3 class="titulo-targetas">Bali, Indonesia.</h3>
+              <p class="texto-targeta">Paraíso tropical con rica 
+          cultura </p>
+              <span class="precio">$749 USD</span>
+              <button class="boton-detalles">Ver detalles</button>
+            </div>
+          </div>
+            <div class="destinos-lista">
+              <div class="destino-item">
+                <img class="imagen-targeta" src="/image/paris.jpg" 
+            alt="Destino 1" />
+                <h3 class="titulo-targetas">Nueva York, EE.UU.</h3>
+                <p class="texto-targeta">La ciudad que nunca duerme </p>
+                <span class="precio">$899 USD</span>
+                <button class="boton-detalles">Ver detalles</button>
+              </div>
+            </div>
+          </div>
+        </section>
+    </main>
+    <footer class="footer-pagprincipal">
+      <p>&copy; 2025 TravelGo. All rights reserved.</p>
+    </footer>
+    <script src="/src/js/calendario.js"></script>
+    <script src="/src/js/tarjetaBusqueda.js"></script>
+  </body>
+</html>
