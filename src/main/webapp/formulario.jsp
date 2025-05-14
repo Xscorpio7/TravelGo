@@ -108,7 +108,7 @@
                 }
             }
 
-            /* Custom checkbox */
+            
             .checkbox-container {
                 display: block;
                 position: relative;
@@ -224,7 +224,7 @@
         </div>
 
         <script>
-            // Detectar cambios en el esquema de color
+            
             const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
             function handleColorSchemeChange(e) {
@@ -235,13 +235,13 @@
                 }
             }
 
-            // Configurar el listener
+            
             darkModeMediaQuery.addListener(handleColorSchemeChange);
 
-            // Ejecutar una vez al cargar
+            
             handleColorSchemeChange(darkModeMediaQuery);
 
-            // Mejorar la experiencia del select
+           
             document.getElementById('country').addEventListener('focus', function () {
                 this.classList.add('ring-2', 'ring-opacity-50', 'ring-cosmic-base');
             });

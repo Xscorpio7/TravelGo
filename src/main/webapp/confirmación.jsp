@@ -84,7 +84,7 @@
                 </div>
             </div>
             
-            <!-- Success Message -->
+            
             <h1 class="text-3xl md:text-4xl font-bold text-center text-[#361c34] dark:text-[#f2f6fc] mb-4">
                 ¡Tu cuenta ${nombreUsuario} ha sido creada exitosamente!
             </h1>
@@ -93,7 +93,7 @@
                 Gracias por registrarte en Travel Go. Ya puedes iniciar sesión y comenzar a planear tu próxima aventura.
             </p>
             
-            <!-- Action Buttons -->
+            
             <div class="flex flex-col space-y-4">
                 <a href="./src/login.html" class="bg-[#dd5c49] hover:bg-[#c04a38] dark:hover:bg-[#dd5c49] text-white font-bold py-3 px-6 rounded-lg text-center transition-colors duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-1">
                     Ir a iniciar sesión
@@ -104,7 +104,7 @@
                 </a>
             </div>
             
-            <!-- Decorative Elements -->
+            
             <div class="mt-10 flex justify-center space-x-2">
                 <div class="w-3 h-3 rounded-full bg-[#b97cb9] dark:bg-[#dd5c49] opacity-70"></div>
                 <div class="w-3 h-3 rounded-full bg-[#dd5c49] dark:bg-[#b97cb9] opacity-70"></div>
@@ -112,7 +112,7 @@
             </div>
         </div>
         
-        <!-- Footer -->
+        
         <p class="mt-8 text-sm text-black-800 dark:text-gray-400 text-center">
             © 2025 Travel Go.
         </p>
