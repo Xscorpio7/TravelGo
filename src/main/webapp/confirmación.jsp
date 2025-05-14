@@ -86,7 +86,7 @@
             
             <!-- Success Message -->
             <h1 class="text-3xl md:text-4xl font-bold text-center text-[#361c34] dark:text-[#f2f6fc] mb-4">
-                ¡Tu cuenta ha sido creada exitosamente!
+                ¡Tu cuenta ${nombreUsuario} ha sido creada exitosamente!
             </h1>
             
             <p class="text-lg text-center text-gray-600 dark:text-gray-300 mb-8">
