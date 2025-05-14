@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar sesión | Travel Go</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        @media (prefers-color-scheme: dark) {
+            .dark\:bg-astronaut-dark {
+                background-color: #212b4a;
+            }
+            .dark\:bg-cosmic-dark {
+                background-color: #361c34;
+            }
+            .dark\:text-light {
+                color: #f2f6fc;
+            }
+            .dark\:border-cosmic {
+                border-color: #804b7e;
+            }
+            .dark\:bg-input-dark {
+                background-color: #2a3655;
+            }
+            .dark\:placeholder-gray-400::placeholder {
+                color: #9ca3af;
+            }
+            .dark\:focus\:border-cosmic:focus {
+                border-color: #b97cb9;
+                outline: none;
+            }
+            .dark\:bg-flamepea {
+                background-color: #dd5c49;
+            }
+            .dark\:hover\:bg-flamepea-dark:hover {
+                background-color: #c04a38;
+            }
+        }
+        
+        .login-container {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        .input-field {
+            transition: all 0.3s ease;
+        }
+        
+        .input-field:focus {
+            box-shadow: 0 0 0 3px rgba(185, 124, 185, 0.3);
+        }
+        
+        .checkbox-container input:checked ~ .checkmark {
+            background-color: #b97cb9;
+            border-color: #b97cb9;
+        }
+        
+        .checkbox-container .checkmark:after {
+            content: "";
+            position: absolute;
+            display: none;
+            left: 6px;
+            top: 2px;
+            width: 5px;
+            height: 10px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+        
+        .checkbox-container input:checked ~ .checkmark:after {
+            display: block;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-[#f2f6fc] to-[#e1ebf8] dark:bg-cosmic-dark dark:text-light font-['Roboto']">
+    <div class="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-screen">
+        <!-- Logo -->
+        <div class="mb-8 text-center">
+            <h1 class="text-4xl font-bold text-[#361c34] dark:text-[#f2f6fc]">
+                <span class="text-[#b97cb9]">Travel</span> Go
+            </h1>
+        </div>
+        
+        <!-- Login Card -->
+        <div class="w-full max-w-md bg-white dark:bg-astronaut-dark rounded-xl login-container p-8 md:p-10">
+            <h2 class="text-2xl font-bold text-center text-[#361c34] dark:text-[#f2f6fc] mb-8">
+                Inicia sesión en Travel Go
+            </h2>
+            
+            <!-- Login Form -->
+            <form>
+                <!-- Email Input -->
+                <div class="mb-6">
+                    <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Correo electrónico
+                    </label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-input-dark input-field focus:border-[#b97cb9] dark:focus:border-cosmic placeholder-gray-500 dark:placeholder-gray-400" 
+                        placeholder="tucorreo@ejemplo.com"
+                        required
+                    >
+                </div>
+                
+                <!-- Password Input -->
+                <div class="mb-6">
+                    <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Contraseña
+                    </label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-input-dark input-field focus:border-[#b97cb9] dark:focus:border-cosmic placeholder-gray-500 dark:placeholder-gray-400" 
+                        placeholder="••••••••"
+                        required
+                    >
+                </div>
+                
+                <!-- Remember Me & Forgot Password -->
+                <div class="flex items-center justify-between mb-6">
+                    <label class="checkbox-container flex items-center cursor-pointer">
+                        <input type="checkbox" class="hidden">
+                        <span class="checkmark w-5 h-5 border border-gray-300 dark:border-gray-600 rounded mr-2 flex-shrink-0"></span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300">Recuérdame</span>
+                    </label>
+                    
+                    <a href="#" class="text-sm text-[#5b8bd6] dark:text-[#b97cb9] hover:underline">
+                        ¿Olvidaste tu contraseña?
+                    </a>
+                </div>
+                
+                <!-- Submit Button -->
+                <button 
+                    type="submit" 
+                    class="w-full bg-[#b97cb9] hover:bg-[#804b7e] dark:bg-flamepea dark:hover:bg-flamepea-dark text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300 mb-6"
+                >
+                    Iniciar sesión
+                </button>
+                
+                <!-- Register Link -->
+                <div class="text-center">
+                    <p class="text-gray-600 dark:text-gray-400">
+                        ¿No tienes cuenta? 
+                        <a href="#" class="text-[#5b8bd6] dark:text-[#b97cb9] font-medium hover:underline">
+                            Regístrate
+                        </a>
+                    </p>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Footer -->
+        <p class="mt-8 text-sm text-gray-500 dark:text-gray-400 text-center">
+            © 2023 Travel Go. Todos los derechos reservados.
+        </p>
+    </div>
+</body>
+</html>

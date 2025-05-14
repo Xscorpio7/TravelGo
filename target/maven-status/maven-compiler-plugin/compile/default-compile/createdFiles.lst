@@ -1,0 +1,5 @@
+com\mycompany\travelgo\JakartaRestConfiguration.class
+com\mycompany\travelgo\resources\JakartaEE8Resource.class
+newpackage\Conexion.class
+newpackage\RegistrarDAO.class
+newpackage\datosUsuario.class

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Travel Go - Registro</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+        <style>
+            :root {
+                --cosmic-base: #b97cb9;
+                --cosmic-dark: #804b7e;
+                --cosmic-darker: #361c34;
+                --flame-base: #dd5c49;
+                --flame-dark: #3f1610;
+                --astronaut-light: #5b8bd6;
+                --astronaut-base: #3d5eb8;
+                --light-bg: #f2f6fc;
+                --dark-text: #212b4a;
+            }
+
+            body {
+                font-family: 'Open Sans', 'Roboto', sans-serif;
+                background-color: var(--light-bg);
+                color: var(--dark-text);
+                transition: all 0.3s ease;
+            }
+
+            .btn-primary {
+                background-color: var(--cosmic-base);
+                transition: all 0.3s ease;
+            }
+
+            .btn-primary:hover {
+                background-color: var(--cosmic-dark);
+                transform: translateY(-2px);
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+
+            .input-field {
+                border: 1px solid #d1d5db;
+                transition: all 0.3s ease;
+            }
+
+            .input-field:focus {
+                border-color: var(--cosmic-base);
+                box-shadow: 0 0 0 3px rgba(185, 124, 185, 0.2);
+            }
+
+            .link-secondary {
+                color: var(--astronaut-base);
+                transition: all 0.2s ease;
+            }
+
+            .link-secondary:hover {
+                color: var(--astronaut-light);
+                text-decoration: underline;
+            }
+
+            .checkbox-container input:checked ~ .checkmark {
+                background-color: var(--cosmic-base);
+                border-color: var(--cosmic-base);
+            }
+
+            @media (prefers-color-scheme: dark) {
+                body {
+                    background-color: var(--cosmic-darker);
+                    color: #f2f6fc;
+                }
+
+                .card {
+                    background-color: var(--dark-text);
+                    border-color: var(--cosmic-dark);
+                }
+
+                .input-field {
+                    background-color: rgba(255, 255, 255, 0.05);
+                    border-color: var(--cosmic-dark);
+                    color: #f2f6fc;
+                }
+
+                .input-field:focus {
+                    border-color: var(--cosmic-base);
+                    box-shadow: 0 0 0 3px rgba(185, 124, 185, 0.3);
+                }
+
+                .btn-primary {
+                    background-color: var(--cosmic-dark);
+                }
+
+                .btn-primary:hover {
+                    background-color: var(--cosmic-base);
+                }
+
+                .link-secondary {
+                    color: var(--astronaut-light);
+                }
+
+                .link-secondary:hover {
+                    color: #8ab4f8;
+                }
+            }
+
+            /* Custom checkbox */
+            .checkbox-container {
+                display: block;
+                position: relative;
+                padding-left: 30px;
+                cursor: pointer;
+                user-select: none;
+            }
+
+            .checkbox-container input {
+                position: absolute;
+                opacity: 0;
+                cursor: pointer;
+                height: 0;
+                width: 0;
+            }
+
+            .checkmark {
+                position: absolute;
+                top: 0;
+                left: 0;
+                height: 20px;
+                width: 20px;
+                background-color: transparent;
+                border: 2px solid #d1d5db;
+                border-radius: 4px;
+                transition: all 0.2s ease;
+            }
+
+            .checkbox-container:hover input ~ .checkmark {
+                border-color: var(--cosmic-base);
+            }
+
+            .checkmark:after {
+                content: "";
+                position: absolute;
+                display: none;
+            }
+
+            .checkbox-container input:checked ~ .checkmark:after {
+                display: block;
+            }
+
+            .checkbox-container .checkmark:after {
+                left: 6px;
+                top: 2px;
+                width: 5px;
+                height: 10px;
+                border: solid white;
+                border-width: 0 2px 2px 0;
+                transform: rotate(45deg);
+            }
+        </style>
+    </head>
+    <body class="min-h-screen flex items-center justify-center p-4">
+        <div class="card max-w-md w-full bg-white rounded-xl shadow-lg overflow-hidden p-8 transition-all duration-300">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-2">Crea tu cuenta</h1>
+                <p class="text-gray-600 dark:text-gray-500">Únete a Travel Go y comienza tu próxima aventura</p>
+            </div>
+
+            <form class="space-y-6" action="/java/newpackage/GuadarUsuarios.java" method="post">
+                <div>
+                    <label for="fullname" class="block text-sm font-medium text-gray-700 dark:text-gray-900 mb-1">Nombre completo</label>
+                    <input type="text" id="fullname" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none dark:text-gray-900" name="nombre" placeholder="Ej: Alejandra González" required>
+                </div>
+
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-900 mb-1">Correo electrónico</label>
+                    <input type="email" id="email" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none dark:text-gray-900" name="correo" placeholder="tu@email.com" required>
+                </div>
+
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-900 mb-1">Contraseña</label>
+                    <input type="password" id="password" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none dark:text-gray-900" name="contraseña"  placeholder="••••••••" required>
+                </div>
+
+                <div>
+                    <label for="confirm-password" class="block text-sm font-medium text-gray-700 dark:text-gray-900 mb-1">Confirmar contraseña</label>
+                    <input type="password" id="confirm-password" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none dark:text-gray-900" placeholder="••••••••" required>
+                </div>
+
+                <div>
+                    <label for="country" class="block text-sm font-medium text-gray-700 dark:text-gray-900 mb-1">País</label>
+                    <select id="country" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none dark:text-gray-900 " name="pais"  required>
+                        <option value="" disabled selected>Selecciona tu país</option>
+                        <option value="MX">México</option>
+                        <option value="ES">España</option>
+                        <option value="AR">Argentina</option>
+                        <option value="CO">Colombia</option>
+                        <option value="CL">Chile</option>
+                        <option value="PE">Perú</option>
+                        <option value="US">Estados Unidos</option>
+                    </select>
+                </div>
+
+
+
+                <input type="submit" class="btn-primary w-full py-3 px-4 rounded-lg text-white font-semibold shadow-md" value="Registrarse">
+            </form>
+
+            <div class="mt-6 text-center">
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                    ¿Ya tienes una cuenta? 
+                    <a href="/src/login.html" class="link-secondary font-medium">Inicia sesión</a>
+                </p>
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 text-center">
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    Al registrarte, aceptas nuestras políticas de privacidad y protección de datos.
+                </p>
+            </div>
+        </div>
+
+        <script>
+            // Detectar cambios en el esquema de color
+            const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+            function handleColorSchemeChange(e) {
+                if (e.matches) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            }
+
+            // Configurar el listener
+            darkModeMediaQuery.addListener(handleColorSchemeChange);
+
+            // Ejecutar una vez al cargar
+            handleColorSchemeChange(darkModeMediaQuery);
+
+            // Mejorar la experiencia del select
+            document.getElementById('country').addEventListener('focus', function () {
+                this.classList.add('ring-2', 'ring-opacity-50', 'ring-cosmic-base');
+            });
+
+            document.getElementById('country').addEventListener('blur', function () {
+                this.classList.remove('ring-2', 'ring-opacity-50', 'ring-cosmic-base');
+            });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travel Go - Descubre el mundo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cosmic-light: #eedfef;
+            --cosmic-base: #b97cb9;
+            --cosmic-dark: #583756;
+            --flame-light: #f9d4cf;
+            --flame-base: #dd5c49;
+            --flame-dark: #8d3427;
+            --astronaut-light: #e1ebf8;
+            --astronaut-base: #5b8bd6;
+            --astronaut-dark: #212b4a;
+        }
+        
+        body {
+            font-family: 'Open Sans', sans-serif;
+            color: #333;
+        }
+        
+        .hero-section {
+            background: linear-gradient(rgba(88, 55, 86, 0.7), rgba(88, 55, 86, 0.7)), 
+                        url('https://images.unsplash.com/photo-1499678329028-101435549a4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80');
+            background-size: cover;
+            background-position: center;
+            height: 80vh;
+        }
+        
+        .search-card {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            transform: translateY(-50%);
+            background-color: var(--astronaut-light);
+        }
+        
+        .destination-card {
+            transition: all 0.3s ease;
+            border: 1px solid var(--cosmic-light);
+        }
+        
+        .destination-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 10px 20px rgba(185, 124, 185, 0.2);
+        }
+        
+        .testimonial-card {
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            background-color: white;
+        }
+        
+        .blog-card {
+            transition: all 0.3s ease;
+            background-color: white;
+        }
+        
+        .blog-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(185, 124, 185, 0.2);
+        }
+        
+        .nav-link {
+            position: relative;
+            color: var(--astronaut-dark);
+        }
+        
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -2px;
+            left: 0;
+            background-color: var(--flame-base);
+            transition: width 0.3s ease;
+        }
+        
+        .nav-link:hover::after {
+            width: 100%;
+        }
+        
+        .btn-primary {
+            background-color: var(--flame-base);
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--flame-dark);
+        }
+        
+        .btn-secondary {
+            border: 2px solid var(--cosmic-base);
+            color: var(--cosmic-base);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover {
+            background-color: var(--cosmic-base);
+            color: white;
+        }
+        
+        .section-title {
+            color: var(--astronaut-dark);
+        }
+        
+        .text-highlight {
+            color: var(--cosmic-base);
+        }
+        
+        .bg-section {
+            background-color: var(--astronaut-light);
+        }
+        
+        .newsletter {
+            background: linear-gradient(135deg, var(--cosmic-dark), var(--cosmic-base));
+        }
+        
+        footer {
+            background-color: var(--astronaut-dark);
+        }
+        
+        .mobile-menu {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-out;
+        }
+        
+        .mobile-menu.open {
+            max-height: 500px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+   
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex justify-between items-center">
+                
+                <div class="flex items-center">
+                    <i class="fas fa-plane text-[var(--cosmic-base)] text-2xl mr-2"></i>
+                    <span class="text-xl font-bold text-[var(--cosmic-dark)]">Travel Go</span>
+                </div>
+                
+                
+                <nav class="hidden md:flex space-x-8 items-center">
+                    <a href="#" class="nav-link font-medium">Inicio</a>
+                    <a href="#" class="nav-link font-medium">Destinos</a>
+                    <a href="#" class="nav-link font-medium">Paquetes</a>
+                    <a href="#" class="nav-link font-medium">Blog</a>
+                    <a href="#" class="nav-link font-medium">Contacto</a>
+                    <a href="./login.html" class="btn-primary px-4 py-2 rounded-lg font-medium">Iniciar sesión</a>
+                </nav>
+                
+               
+                <button id="mobile-menu-button" class="md:hidden text-[var(--astronaut-dark)] focus:outline-none">
+                    <i class="fas fa-bars text-2xl"></i>
+                </button>
+            </div>
+            
+            
+            <div id="mobile-menu" class="mobile-menu md:hidden">
+                <div class="pt-4 pb-2 space-y-3">
+                    <a href="#" class="block px-3 py-2 rounded-md text-[var(--astronaut-dark)] hover:bg-[var(--cosmic-light)]">Inicio</a>
+                    <a href="#" class="block px-3 py-2 rounded-md text-[var(--astronaut-dark)] hover:bg-[var(--cosmic-light)]">Destinos</a>
+                    <a href="#" class="block px-3 py-2 rounded-md text-[var(--astronaut-dark)] hover:bg-[var(--cosmic-light)]">Paquetes</a>
+                    <a href="#" class="block px-3 py-2 rounded-md text-[var(--astronaut-dark)] hover:bg-[var(--cosmic-light)]">Blog</a>
+                    <a href="#" class="block px-3 py-2 rounded-md text-[var(--astronaut-dark)] hover:bg-[var(--cosmic-light)]">Contacto</a>
+                    <a href="./login.html" class="block px-3 py-2 rounded-md btn-primary text-center">Iniciar sesión</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <
+    <section class="hero-section flex items-center justify-center text-white">
+        <div class="container mx-auto px-4 text-center">
+            <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">Descubre el mundo con <span class="text-[var(--cosmic-light)]">Travel Go</span></h1>
+            <p class="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">Encuentra las mejores ofertas en viajes, paquetes y experiencias únicas.</p>
+        </div>
+    </section>
+
+    
+    <section id="search-section" class="container mx-auto px-4 -mt-16 mb-16">
+        <div class="search-card p-6 md:p-8">
+            <h2 class="text-2xl font-bold text-[var(--astronaut-dark)] mb-6">Encuentra tu viaje perfecto</h2>
+            <form class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                    <label for="destination" class="block text-[var(--astronaut-dark)] font-medium mb-2">Destino</label>
+                    <div class="relative">
+                        <i class="fas fa-map-marker-alt absolute left-3 top-3 text-[var(--cosmic-base)]"></i>
+                        <input type="text" id="destination" placeholder="¿A dónde vas?" class="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--cosmic-base)]">
+                    </div>
+                </div>
+                <div>
+                    <label for="departure" class="block text-[var(--astronaut-dark)] font-medium mb-2">Fecha de salida</label>
+                    <div class="relative">
+                        <i class="fas fa-calendar-alt absolute left-3 top-3 text-[var(--cosmic-base)]"></i>
+                        <input type="date" id="departure" class="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--cosmic-base)]">
+                    </div>
+                </div>
+                <div>
+                    <label for="return" class="block text-[var(--astronaut-dark)] font-medium mb-2">Fecha de regreso</label>
+                    <div class="relative">
+                        <i class="fas fa-calendar-alt absolute left-3 top-3 text-[var(--cosmic-base)]"></i>
+                        <input type="date" id="return" class="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--cosmic-base)]">
+                    </div>
+                </div>
+                <div>
+                    <label for="passengers" class="block text-[var(--astronaut-dark)] font-medium mb-2">Personas</label>
+                    <div class="relative">
+                        <i class="fas fa-user absolute left-3 top-3 text-[var(--cosmic-base)]"></i>
+                        <select id="passengers" class="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--cosmic-base)]">
+                            <option value="1">1 persona</option>
+                            <option value="2">2 personas</option>
+                            <option value="3">3 personas</option>
+                            <option value="4">4 personas</option>
+                            <option value="5+">5+ personas</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="md:col-span-2 lg:col-span-4 flex justify-center mt-4">
+                    <button type="submit" class="btn-primary px-8 py-3 rounded-lg font-medium w-full md:w-auto">
+                        <i class="fas fa-search mr-2"></i> Buscar viajes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- Popular Destinations -->
+    <section class="container mx-auto px-4 mb-16">
+        <div class="text-center mb-12">
+            <h2 class="section-title text-3xl font-bold mb-2">Destinos populares</h2>
+            <p class="text-gray-600 max-w-2xl mx-auto">Explora nuestros destinos más buscados y vive experiencias inolvidables</p>
+        </div>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- Destination 1 -->
+            <div class="destination-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg">
+                <div class="relative h-48 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1518391846015-55a9cc003b25?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80" alt="París" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    <div class="absolute bottom-4 left-4 text-white">
+                        <h3 class="font-bold text-xl">París</h3>
+                        <p class="text-sm">Desde $899</p>
+                    </div>
+                </div>
+                <div class="p-4">
+                    <p class="text-gray-600 mb-4">La ciudad del amor te espera con sus monumentos icónicos y su encanto único.</p>
+                    <a href="#" class="text-[var(--cosmic-base)] font-medium hover:text-[var(--cosmic-dark)] flex items-center">
+                        Ver más <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Destination 2 -->
+            <div class="destination-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg">
+                <div class="relative h-48 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1538970272646-f61fabb3bfdf?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80" alt="Tokio" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    <div class="absolute bottom-4 left-4 text-white">
+                        <h3 class="font-bold text-xl">Tokio</h3>
+                        <p class="text-sm">Desde $1299</p>
+                    </div>
+                </div>
+                <div class="p-4">
+                    <p class="text-gray-600 mb-4">Descubre la fusión perfecta entre tradición y modernidad en la capital de Japón.</p>
+                    <a href="#" class="text-[var(--cosmic-base)] font-medium hover:text-[var(--cosmic-dark)] flex items-center">
+                        Ver más <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                </div>
+            </div>
+            
+            
+            <div class="destination-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg">
+                <div class="relative h-48 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1516483638261-f4dbaf036963?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80" alt="Nueva York" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    <div class="absolute bottom-4 left-4 text-white">
+                        <h3 class="font-bold text-xl">Nueva York</h3>
+                        <p class="text-sm">Desde $1099</p>
+                    </div>
+                </div>
+                <div class="p-4">
+                    <p class="text-gray-600 mb-4">La ciudad que nunca duerme ofrece experiencias únicas en cada esquina.</p>
+                    <a href="#" class="text-[var(--cosmic-base)] font-medium hover:text-[var(--cosmic-dark)] flex items-center">
+                        Ver más <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                </div>
+            </div>
+            
+            
+            <div class="destination-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg">
+                <div class="relative h-48 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1523482580672-f109ba8cb9be?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80" alt="Bali" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    <div class="absolute bottom-4 left-4 text-white">
+                        <h3 class="font-bold text-xl">Bali</h3>
+                        <p class="text-sm">Desde $799</p>
+                    </div>
+                </div>
+                <div class="p-4">
+                    <p class="text-gray-600 mb-4">Paraíso tropical con playas de ensueño y una cultura fascinante.</p>
+                    <a href="#" class="text-[var(--cosmic-base)] font-medium hover:text-[var(--cosmic-dark)] flex items-center">
+                        Ver más <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-10">
+            <a href="#" class="btn-secondary px-6 py-2 rounded-lg font-medium inline-block">
+                Ver todos los destinos
+            </a>
+        </div>
+    </section>
+
+    
+    <section class="bg-section py-16 mb-16">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-12">
+                <h2 class="section-title text-3xl font-bold mb-2">Lo que dicen nuestros viajeros</h2>
+                <p class="text-gray-600 max-w-2xl mx-auto">Experiencias reales de nuestros clientes satisfechos</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Testimonial 1 -->
+                <div class="testimonial-card p-6 rounded-lg">
+                    <div class="flex items-center mb-4">
+                        <div class="w-12 h-12 rounded-full overflow-hidden mr-4">
+                            <img src="https://randomuser.me/api/portraits/women/32.jpg" alt="María González" class="w-full h-full object-cover">
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-[var(--astronaut-dark)]">María González</h4>
+                            <div class="flex text-[var(--flame-base)]">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-gray-600">"El viaje a París organizado por Travel Go fue increíble. Todo estuvo perfectamente coordinado y el hotel estaba en una ubicación excelente. ¡Volveré a viajar con ellos sin duda!"</p>
+                </div>
+                
+                
+                <div class="testimonial-card p-6 rounded-lg">
+                    <div class="flex items-center mb-4">
+                        <div class="w-12 h-12 rounded-full overflow-hidden mr-4">
+                            <img src="https://randomuser.me/api/portraits/men/45.jpg" alt="Carlos Martínez" class="w-full h-full object-cover">
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-[var(--astronaut-dark)]">Carlos Martínez</h4>
+                            <div class="flex text-[var(--flame-base)]">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star-half-alt"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-gray-600">"Nuestra luna de miel en Bali fue mágica gracias a Travel Go. Las excursiones incluidas eran espectaculares y el servicio al cliente resolvió todas nuestras dudas rápidamente."</p>
+                </div>
+                
+                
+                <div class="testimonial-card p-6 rounded-lg">
+                    <div class="flex items-center mb-4">
+                        <div class="w-12 h-12 rounded-full overflow-hidden mr-4">
+                            <img src="https://randomuser.me/api/portraits/women/68.jpg" alt="Laura Sánchez" class="w-full h-full object-cover">
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-[var(--astronaut-dark)]">Laura Sánchez</h4>
+                            <div class="flex text-[var(--flame-base)]">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-gray-600">"Viajar a Japón siempre fue mi sueño y Travel Go lo hizo realidad. El itinerario incluía todos los lugares que quería visitar y los guías eran muy conocedores. ¡Experiencia 10/10!"</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+   
+    <section class="container mx-auto px-4 mb-16">
+        <div class="text-center mb-12">
+            <h2 class="section-title text-3xl font-bold mb-2">Consejos y recomendaciones</h2>
+            <p class="text-gray-600 max-w-2xl mx-auto">Aprende de nuestros expertos y prepara mejor tus viajes</p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            
+            <div class="blog-card rounded-xl overflow-hidden shadow-md hover:shadow-lg">
+                <div class="h-48 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1506197603052-3cc9c3a201bd?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80" alt="Consejos para viajar con poco presupuesto" class="w-full h-full object-cover">
+                </div>
+                <div class="p-6">
+                    <span class="text-[var(--cosmic-base)] text-sm font-medium">Presupuesto</span>
+                    <h3 class="text-xl font-bold text-[var(--astronaut-dark)] my-2">10 consejos para viajar con poco presupuesto</h3>
+                    <p class="text-gray-600 mb-4">Descubre cómo maximizar tu experiencia viajera sin gastar demasiado dinero.</p>
+                    <a href="#" class="text-[var(--cosmic-base)] font-medium hover:text-[var(--cosmic-dark)] flex items-center">
+                        Leer más <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                </div>
+            </div>
+            
+            
+            <div class="blog-card rounded-xl overflow-hidden shadow-md hover:shadow-lg">
+                <div class="h-48 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1500835556837-99ac94a05b1d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80" alt="Equipaje perfecto" class="w-full h-full object-cover">
+                </div>
+                <div class="p-6">
+                    <span class="text-[var(--cosmic-base)] text-sm font-medium">Preparación</span>
+                    <h3 class="text-xl font-bold text-[var(--astronaut-dark)] my-2">Cómo preparar el equipaje perfecto para cualquier viaje</h3>
+                    <p class="text-gray-600 mb-4">Aprende a empacar de manera inteligente sin olvidar lo esencial ni cargar con peso innecesario.</p>
+                    <a href="#" class="text-[var(--cosmic-base)] font-medium hover:text-[var(--cosmic-dark)] flex items-center">
+                        Leer más <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                </div>
+            </div>
+            
+            
+            <div class="blog-card rounded-xl overflow-hidden shadow-md hover:shadow-lg">
+                <div class="h-48 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1508672019048-805c876b67e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80" alt="Destinos poco conocidos" class="w-full h-full object-cover">
+                </div>
+                <div class="p-6">
+                    <span class="text-[var(--cosmic-base)] text-sm font-medium">Destinos</span>
+                    <h3 class="text-xl font-bold text-[var(--astronaut-dark)] my-2">5 destinos poco conocidos que deberías visitar</h3>
+                    <p class="text-gray-600 mb-4">Explora lugares fascinantes fuera de los circuitos turísticos tradicionales.</p>
+                    <a href="#" class="text-[var(--cosmic-base)] font-medium hover:text-[var(--cosmic-dark)] flex items-center">
+                        Leer más <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-10">
+            <a href="#" class="btn-primary px-6 py-3 rounded-lg font-medium inline-block">
+                Ver todos los artículos
+            </a>
+        </div>
+    </section>
+
+    
+    <section class="newsletter text-white py-16 mb-16">
+        <div class="container mx-auto px-4 text-center">
+            <h2 class="text-3xl font-bold mb-4">No te pierdas nuestras mejores ofertas</h2>
+            <p class="text-xl mb-8 max-w-2xl mx-auto">Suscríbete a nuestro newsletter y recibe descuentos exclusivos en tu correo</p>
+            
+            <form class="max-w-md mx-auto flex">
+                <input type="email" placeholder="Tu correo electrónico" class="flex-grow px-4 py-3 rounded-l-lg focus:outline-none text-gray-800">
+                <button type="submit" class="bg-[var(--flame-dark)] hover:bg-[var(--flame-base)] px-6 py-3 rounded-r-lg font-medium">
+                    Suscribirse
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="pt-16 pb-8">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+                <!-- About -->
+                <div>
+                    <div class="flex items-center mb-4">
+                        <i class="fas fa-plane text-[var(--cosmic-light)] text-2xl mr-2"></i>
+                        <span class="text-xl font-bold text-[var(--cosmic-light)]">Travel Go</span>
+                    </div>
+                    <p class="text-gray-400 mb-4">Hacemos realidad tus sueños de viaje con las mejores experiencias y precios competitivos.</p>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-white transition duration-300"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-white transition duration-300"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-white transition duration-300"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-white transition duration-300"><i class="fab fa-linkedin-in"></i></a>
+                    </div>
+                </div>
+                
+                <!-- Quick Links -->
+                <div>
+                    <h3 class="text-lg font-bold text-white mb-4">Enlaces rápidos</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-400 hover:text-white transition duration-300">Inicio</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition duration-300">Destinos</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition duration-300">Paquetes</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition duration-300">Ofertas</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition duration-300">Blog</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Support -->
+                <div>
+                    <h3 class="text-lg font-bold text-white mb-4">Soporte</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-400 hover:text-white transition duration-300">Contacto</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition duration-300">FAQ</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition duration-300">Términos y condiciones</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition duration-300">Política de privacidad</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition duration-300">Política de cancelación</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Contact -->
+                <div>
+                    <h3 class="text-lg font-bold text-white mb-4">Contacto</h3>
+                    <ul class="space-y-3">
+                        <li class="flex items-start">
+                            <i class="fas fa-map-marker-alt text-[var(--cosmic-light)] mt-1 mr-3"></i>
+                            <span class="text-gray-400">Calle Viajera 123, Ciudad Viaje, País</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-phone-alt text-[var(--cosmic-light)] mr-3"></i>
+                            <span class="text-gray-400">+57 3334445555</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-envelope text-[var(--cosmic-light)] mr-3"></i>
+                            <span class="text-gray-400">info@travelgo.com</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fab fa-whatsapp text-[var(--cosmic-light)] mr-3"></i>
+                            <span class="text-gray-400">+57 3334445555</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-800 pt-8">
+                <div class="flex flex-col md:flex-row justify-between items-center">
+                    <p class="text-gray-400 mb-4 md:mb-0">© 2025 Travel Go.</p>
+                    <div class="flex space-x-6">
+                        <img src="https://via.placeholder.com/40x25" alt="Visa" class="h-6">
+                        <img src="https://via.placeholder.com/40x25" alt="Mastercard" class="h-6">
+                        <img src="https://via.placeholder.com/40x25" alt="PayPal" class="h-6">
+                        <img src="https://via.placeholder.com/40x25" alt="American Express" class="h-6">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Mobile menu toggle
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        
+        mobileMenuButton.addEventListener('click', () => {
+            mobileMenu.classList.toggle('open');
+        });
+    </script>
+</body>
