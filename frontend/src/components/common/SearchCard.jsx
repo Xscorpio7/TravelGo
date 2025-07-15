@@ -3,7 +3,7 @@ function SearchCard () {
   return (
     <div>
     <section className="relative h-[80vh] flex items-center justify-center text-white overflow-hidden">
-      //imagen de fondo seccion busqueda
+ 
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000"
         style={{
@@ -12,8 +12,8 @@ function SearchCard () {
         loading="lazy"
       />
       
-      //Mensaje seccion busquedas
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-900/80 via-purple-800/70 to-indigo-900/60 animate-pulse" />
+
+      <div className="absolute inset-0 animate-pulse" />
       
       
       <div className="relative z-10 container mx-auto px-4 text-center">
@@ -28,34 +28,33 @@ function SearchCard () {
         </p>
       </div>
     </section>
-    //seccion busqueda de destino
-    <section id="search-section" className="container mx-auto px-4 -mt-16 mb-5">
+    <section id="search-section" className="container mx-auto px-4-mt-16 mb-5">
         <div className="search-card p-6 md:p-8">
             <h2 className="text-2xl font-bold text-astronaut-dark mb-6">Encuentra tu viaje perfecto</h2>
             <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
-                    <label for="destination" className="block text-astronaut-dark font-medium mb-2">Destino</label>
+                    <label htmlFor="destination" className="block text-astronaut-dark font-medium mb-2">Destino</label>
                     <div className="relative">
                         <i className="fas fa-user absolute left-3 top-3 text-cosmic-base"></i>
                         <input type="text" id="destination" placeholder="¿A dónde vas?" className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-base"/>
                     </div>
                 </div>
                 <div>
-                    <label for="departure" class="block text-astronaut-dark font-medium mb-2">Fecha de salida</label>
+                    <label htmlFor="departure" className="block text-astronaut-dark font-medium mb-2">Fecha de salida</label>
                     <div className="relative">
                         <i className=" Fa calendar absolute left-3 top-3 text-cosmic-base"></i>
-                        <input type="date" id="departure" class="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-base"/>
+                        <input type="date" id="departure" className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-base"/>
                     </div>
                 </div>
                 <div>
-                    <label for="return" className="block text-astronaut-dark font-medium mb-2">Fecha de regreso</label>
+                    <label htmlFor="return" className="block text-astronaut-dark font-medium mb-2">Fecha de regreso</label>
                     <div className="relative">
                         <i className="fas fa-calendar-alt absolute left-3 top-3 text-cosmic-base"></i>
                         <input type="date" id="return" className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-base"/>
                     </div>
                 </div>
                 <div>
-                    <label for="passengers" className="block text-astronaut-dark font-medium mb-2">Personas</label>
+                    <label htmlFor="passengers" className="block text-astronaut-dark font-medium mb-2">Personas</label>
                     <div className="relative">
                         <i className="fas fa-user absolute left-3 top-3 text-cosmic-base"></i>
                         <select id="passengers" className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-base">

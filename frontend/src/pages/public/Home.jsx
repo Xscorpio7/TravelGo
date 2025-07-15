@@ -1,15 +1,15 @@
-//import Footer from "../../components/common/Footer";
+import Footer from "../../components/common/Footer";
 import Navbar from "../../components/common/Navbar";
 import SearchCard from "../../components/common/SearchCard";
-import Destinations from "../public/Destinations";
+import Destinations from "./Destinations";
 
- function Home() {
+function Home() {
   return (
     <div>
-      <Navbar />,
-      <SearchCard />,
-      <Destinations/>,
-
+      <Navbar />
+      <SearchCard />
+      <Destinations />
+      <Footer />
     </div>
   );
 }

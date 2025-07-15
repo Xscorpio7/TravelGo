@@ -1,23 +1,22 @@
 import React from "react";
 import logo from "../../assets/logo_TravelGo2.png";
+import { Link } from "react-router-dom";
 
-// estilos barra superior 
 function Navbar() {
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 py-3">
         <div className="flex justify-between items-center">
           <div className="flex items-center">
-            <a href="../../pages/public/Home.jsx">
-              {" "}
+            <Link to= "/">
               <img
                 src={logo}
                 alt="Logo"
                 className="w-[120px] h-auto pointer-events-auto"
               />
-            </a>
+            </Link>
           </div>
-          //  opciones pantalla de computador
+          
           <nav className="hidden md:flex space-x-8 items-center font-medium">
             <a href="#" className="nav-link font-medium">
               Inicio
@@ -34,13 +33,13 @@ function Navbar() {
             <a href="#" className="nav-link font-medium">
               Contacto
             </a>
-            <a
-              href="../../pages/public/Login.jsx"
-              target="_blank"
+            <Link
+              to="/login"
+            
               className="btn-primary px-4 py-2 rounded-lg font-medium"
             >
               Iniciar sesión
-            </a>
+            </Link>
           </nav>
           <button
             id="mobile-menu-button"
@@ -49,45 +48,50 @@ function Navbar() {
             <i className="fas fa-bars text-2xl"></i>
           </button>
         </div>
-        //opciones pantalla celular
+        
         <div id="mobile-menu" className="mobile-menu md:hidden">
           <div className="pt-4 pb-2 space-y-3">
             <a
               href="#"
+              target="_blank"
               className="block px-3 py-2 rounded-md text-astronaut-dark hover:bg-cosmic-light"
             >
               Inicio
             </a>
             <a
               href="#"
+              target="_blank"
               className="block px-3 py-2 rounded-md text-astronaut-dark hover:bg-cosmic-light"
             >
               Destinos
             </a>
             <a
               href="#"
+              target="_blank"
               className="block px-3 py-2 rounded-md text-astronaut-dark hover:bg-cosmic-light"
             >
               Paquetes
             </a>
             <a
               href="#"
+              target="_blank"
               className="block px-3 py-2 rounded-md text-astronaut-dark hover:bg-cosmic-light"
             >
               Blog
             </a>
             <a
               href="#"
+              target="_blank"
               className="block px-3 py-2 rounded-md text-astronaut-dark hover:bg-cosmic-light"
             >
               Contacto
             </a>
-            <a
-              href="./login.html"
-              className="block px-3 py-2 rounded-md btn-primary text-center"
+            <Link
+            to="/login"
+            className="block px-3 py-2 rounded-md btn-primary text-center"
             >
               Iniciar sesión
-            </a>
+            </Link>
           </div>
         </div>
       </div>

@@ -6,6 +6,9 @@ export default {
   ],
   theme: {
     extend: {
+      animation: {
+        'custom-pulse': 'pulse 2s infinite',
+      },
       colors: {
         cosmic: {
           light: '#eedfef',

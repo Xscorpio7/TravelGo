@@ -5,19 +5,20 @@
 @import 'fortawesome/fontawesome-free/css/all.min.css';
 
 body {
-  font-family: 'Open Sans', sans-serif;
+  height: auto;
   color: #333;
 }
 
+
 @layer components {
-  
-   .heroSection {
-  background: linear-gradient(rgba(88, 55, 86, 0.7), rgba(88, 55, 86, 0.7)), url('https://images.unsplash.com/photo-1499678329028-101435549a4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80');
-  background-size: cover;
-  background-position: center;
-  height: 80vh;
-}
-  
+
+  .heroSection {
+    background: rgba(88, 55, 86, 0.7), url('https://images.unsplash.com/photo-1499678329028-101435549a4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80');
+    background-size: cover;
+    background-position: center;
+    height: 80vh;
+  }
+
   .search-card {
     @apply shadow-xl rounded-[12px] bg-astronaut-light translate-y-[-50%];
   }
@@ -26,20 +27,32 @@ body {
     @apply transition-all duration-300 ease-in-out border border-cosmic-light;
   }
 
+  @layer utilities {
+  .custom-shadow {
+    box-shadow: 0 10px 20px rgba(185, 124, 185, 0.2);
+  }
+
   .destination-card:hover {
-    @apply -translate-y-[10px] shadow-[0_10px_20px_rgba(185,124,185,0.2)];
+    @apply -translate-y-[10px] custom-shadow;
+  }
+}
+
+  @layer utilities {
+  .custom-shadow {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
   }
 
   .testimonial-card {
-    @apply shadow-[0_5px_15px_rgba(0,0,0,0.05)] bg-white;
+    @apply custom-shadow bg-white;
   }
+}
 
   .blog-card {
     @apply transition-all duration-300 ease-in-out bg-white;
   }
 
   .blog-card:hover {
-    @apply -translate-y-[5px] shadow-[0_10px_20px_rgba(185,124,185,0.2)];
+    @apply -translate-y-[5px] shadow-[0_10px_20px_rgba(185, 124, 185, 0.2)];
   }
 
   .nav-link {
@@ -84,7 +97,7 @@ body {
   }
 
   .newsletter {
-    background-image: linear-gradient(135deg, cosmic-dark, cosmic-base);
+   @apply  background-image: linear-gradient(135deg, cosmic-dark, cosmic-base);
   }
 
   footer {
@@ -98,4 +111,16 @@ body {
   .mobile-menu.open {
     @apply max-h-[500px];
   }
+
+  .card-hover:hover {
+  @apply -translate-y-1 shadow-lg;
+}
+
+
+  .pulse-animation {
+  @apply animate-pulse;
+}
+
+
+
 }

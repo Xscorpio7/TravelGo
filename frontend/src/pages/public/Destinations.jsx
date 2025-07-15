@@ -4,6 +4,7 @@ import tokyo from "../../assets/tokyo.jpg";
 import newyork from "../../assets/newyork.webp";
 import bali from "../../assets/bali.jpg";
 function Destinations (){
+  return(
    <section className="container mx-auto px-4 mb-16 bg-">
     <div className="text-center mb-12">
       <h2 className="section-title text-3xl font-bold mb-2">
@@ -15,7 +16,7 @@ function Destinations (){
     </div>
 
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-//caracteristicas de las tarejetas de destinios
+
         <DestinationCard
             title="París"
             description="Descubre la ciudad del amor con sus icónicos monumentos y cultura vibrante."
@@ -55,6 +56,7 @@ function Destinations (){
       </a>
     </div>
     </section>
+  )
 }
 export default Destinations;
 
