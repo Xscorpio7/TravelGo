@@ -1,7 +1,8 @@
 package com.travelgo.backend_travelgo.dto;
 
 public class RegistroRequest {
-    public String nombre_completo;
+    public String primerNombre;
+    public String primerApellido;
     public String telefono;
     public String nacionalidad;
     public String fecha_nacimiento;

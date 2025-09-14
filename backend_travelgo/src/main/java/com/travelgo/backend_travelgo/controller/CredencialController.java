@@ -1,8 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
-
 package com.travelgo.backend_travelgo.controller;
 
 import com.travelgo.backend_travelgo.model.Credencial;
@@ -10,9 +5,11 @@ import com.travelgo.backend_travelgo.repository.CredencialRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 import java.util.Optional;
+import org.springframework.http.HttpStatus;
+import java.util.Map;
+
 
 @RestController
 @RequestMapping("/api/credenciales")
@@ -22,8 +19,7 @@ public class CredencialController {
     @Autowired
     private CredencialRepository credencialRepository;
 
-  
-   
+    // Obtener todas las credenciales
     @GetMapping
     public List<Credencial> getAllCredenciales() {
         return credencialRepository.findAll();
@@ -31,33 +27,33 @@ public class CredencialController {
 
     // Crear nueva credencial
     @PostMapping
-    public ResponseEntity<Credencial> createCredencial(@RequestBody Credencial credencial) {
-        try {
-            if (credencialRepository.existsByCorreo(credencial.getCorreo())) {
-                return ResponseEntity.badRequest().build();
-            }
-            Credencial credencialGuardada = credencialRepository.save(credencial);
-            return ResponseEntity.ok(credencialGuardada);
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
-        }
+    public ResponseEntity<?> crearCredencial(@RequestBody Credencial credencial) {
+    if (credencialRepository.existsByCorreo(credencial.getCorreo())) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("El correo ya está registrado.");
     }
-    
+
+    Credencial nueva = credencialRepository.save(credencial);
+    return ResponseEntity.ok(nueva);
+}   
+
+
+    // Login de credencial
     @PostMapping("/login")
     public ResponseEntity<Credencial> login(@RequestBody Credencial credencial) {
         try {
             Optional<Credencial> credencialEncontrada = credencialRepository
-                .findByCorreoAndContrasena(credencial.getCorreo(), credencial.getContrasena());
-            
+                    .findByCorreoAndContrasena(credencial.getCorreo(), credencial.getContrasena());
+
             if (credencialEncontrada.isPresent()) {
                 return ResponseEntity.ok(credencialEncontrada.get());
             } else {
-                return ResponseEntity.unauthorized().build();
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
             }
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
     }
+
     // Obtener una credencial por ID
     @GetMapping("/{id}")
     public ResponseEntity<Credencial> getCredencialById(@PathVariable int id) {
@@ -77,6 +73,20 @@ public class CredencialController {
                     return ResponseEntity.ok(credencialRepository.save(credencial));
                 }).orElse(ResponseEntity.notFound().build());
     }
+    @PutMapping("/recuperar-contrasena")
+public ResponseEntity<?> recuperarContrasena(@RequestBody Map<String, String> payload) {
+    String correo = payload.get("correo");
+    String nuevaContrasena = payload.get("nuevaContrasena");
+
+    return credencialRepository.findByCorreo(correo)
+            .map(credencial -> {
+                credencial.setContrasena(nuevaContrasena); 
+                credencialRepository.save(credencial);
+                return ResponseEntity.ok("Contraseña actualizada con éxito");
+            })
+            .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body("Correo no encontrado"));
+}
+
 
     // Eliminar credencial
     @DeleteMapping("/{id}")

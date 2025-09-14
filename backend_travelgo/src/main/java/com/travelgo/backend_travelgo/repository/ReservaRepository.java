@@ -1,11 +1,10 @@
-
-
 package com.travelgo.backend_travelgo.repository;
-import com.travelgo.backend_travelgo.model.Usuario;
+
+import com.travelgo.backend_travelgo.model.Reserva;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-
-public interface UsuarioRepository extends JpaRepository<Usuario, Integer> {
+@Repository
+public interface ReservaRepository extends JpaRepository<Reserva, Integer> {
     
 }

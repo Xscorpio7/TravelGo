@@ -13,6 +13,8 @@ import com.travelgo.backend_travelgo.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.travelgo.backend_travelgo.dto.CambiarContrasenaRequest;
+
 
 import java.time.LocalDate;
 import java.util.List;
@@ -32,6 +34,13 @@ public class UsuarioController {
     public List<Usuario> getAllUsuarios() {
         return usuarioRepository.findAll();
     }
+    
+    @GetMapping("/{id}")
+    public ResponseEntity<Usuario> getUsuarioById(@PathVariable int id) {
+    return usuarioRepository.findById(id)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
+    }
 
     @PostMapping
     public ResponseEntity<?> registrar(@RequestBody RegistroRequest req) {
@@ -49,11 +58,12 @@ public class UsuarioController {
 
             // Crear el usuario
             Usuario usuario = new Usuario(
-                    req.nombre_completo,
-                    req.telefono,
-                    req.nacionalidad,
-                    LocalDate.parse(req.fecha_nacimiento),
-                    Usuario.Genero.valueOf(req.genero) 
+      req.primerNombre,
+    req.primerApellido,
+         req.telefono,
+      Usuario.Nacionalidad.valueOf(req.nacionalidad),
+    LocalDate.parse(req.fecha_nacimiento),
+          Usuario.Genero.valueOf(req.genero) 
             );
             usuario.setCredencial(credencial);
 
@@ -70,7 +80,8 @@ public class UsuarioController {
     public ResponseEntity<Usuario> updateUsuario(@PathVariable int id, @RequestBody Usuario usuarioDetails) {
         return usuarioRepository.findById(id)
                 .map(usuario -> {
-                    usuario.setNombreCompleto(usuarioDetails.getNombreCompleto());
+                    usuario.setPrimerNombre(usuarioDetails.getPrimerNombre());
+                    usuario.setPrimerApellido(usuarioDetails.getPrimerApellido());
                     usuario.setTelefono(usuarioDetails.getTelefono());
                     usuario.setNacionalidad(usuarioDetails.getNacionalidad());
                     usuario.setFechaNacimiento(usuarioDetails.getFechaNacimiento());
@@ -78,6 +89,17 @@ public class UsuarioController {
                     return ResponseEntity.ok(usuarioRepository.save(usuario));
                 }).orElse(ResponseEntity.notFound().build());
     }
+    
+    @PutMapping("/cambiar-contrasena/{id}")
+public ResponseEntity<?> cambiarContrasena(@PathVariable int id, @RequestBody CambiarContrasenaRequest req) {
+    return credencialRepository.findById(id)
+            .map(credencial -> {
+                credencial.setContrasena(req.getNuevaContrasena());
+                credencialRepository.save(credencial);
+                return ResponseEntity.ok("Contraseña actualizada con éxito");
+            })
+            .orElse(ResponseEntity.notFound().build());
+}
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUsuario(@PathVariable int id) {

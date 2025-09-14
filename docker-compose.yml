@@ -1,0 +1,39 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: travelgo-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: travelgo_bd
+      MYSQL_USER: root
+      MYSQL_PASSWORD: 
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  backend:
+    build: ./backend_travelgo
+    container_name: travelgo-backend
+    restart: always
+    depends_on:
+      - mysql
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/travelgo_bd
+      SPRING_DATASOURCE_USERNAME: travelgo_user
+      SPRING_DATASOURCE_PASSWORD: travelgo_pass
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build: ./frontend
+    container_name: travelgo-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  mysql_data:

@@ -1,5 +1,48 @@
+import { useState } from "react";
+import axios from "axios";
 import { FaMapMarkedAlt } from "react-icons/fa";
-function SearchCard () {
+
+function SearchCard() {
+  const [formData, setFormData] = useState({
+    origin:"",
+    destination: "",
+    departureDate: "",
+    returnDate: "",
+    adults: 1,
+  });
+
+  const [results, setResults] = useState([]);
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      
+      const response = await fetch ("http://localhost:8080/api/flights/search", {
+        method:POST,
+        headers: {
+          "Content-Type": "application/json",
+        
+        },
+        body: JSON.stringify(formData),
+      });
+      setResults(response.data);
+      console.log("Resultados vuelos:", response.data);
+      const data = await response.json();
+      console.log("Flight offers:", data);
+  
+    } catch (error) {
+      console.error("Error al buscar vuelos:", error);
+    }
+  };
+
+
   return (
     <div>
     <section className="relative h-[80vh] flex items-center justify-center text-white overflow-hidden">
@@ -32,32 +75,61 @@ function SearchCard () {
         <div className="search-card p-6 md:p-8">
             <h2 className="text-2xl font-bold text-astronaut-dark mb-6">Encuentra tu viaje perfecto</h2>
             <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
+              <div>                  
+                    <label htmlFor="origin" className="block text-astronaut-dark font-medium mb-2">Origen</label>
+                    <div className="relative">
+                        <i className="fas fa-user absolute left-3 top-3 text-cosmic-base"></i>
+                        <input type="text" id="origin" 
+                        name="origin"
+                        placeholder="¿De donde viajas?" 
+                        value={formData.origin} 
+                        onChange={handleChange}
+                        className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-base"/>
+                    </div>
+                </div>
+                <div>                  
                     <label htmlFor="destination" className="block text-astronaut-dark font-medium mb-2">Destino</label>
                     <div className="relative">
                         <i className="fas fa-user absolute left-3 top-3 text-cosmic-base"></i>
-                        <input type="text" id="destination" placeholder="¿A dónde vas?" className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-base"/>
+                        <input type="text" id="destination"
+                        name="destination"
+                        placeholder="¿A dónde vas?" 
+                        value={formData.destination} 
+                        onChange={handleChange}
+                        className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-base"/>
                     </div>
                 </div>
                 <div>
-                    <label htmlFor="departure" className="block text-astronaut-dark font-medium mb-2">Fecha de salida</label>
+                    <label htmlFor="departureDate" className="block text-astronaut-dark font-medium mb-2">Fecha de salida</label>
                     <div className="relative">
                         <i className=" Fa calendar absolute left-3 top-3 text-cosmic-base"></i>
-                        <input type="date" id="departure" className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-base"/>
+                        <input type="date" id="departureDate"
+                        name="departureDate"
+                        value={formData.departure} 
+                        onChange={handleChange}
+                        className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-base"/>
                     </div>
                 </div>
                 <div>
-                    <label htmlFor="return" className="block text-astronaut-dark font-medium mb-2">Fecha de regreso</label>
+                    <label htmlFor="returnDate" className="block text-astronaut-dark font-medium mb-2">Fecha de regreso</label>
                     <div className="relative">
                         <i className="fas fa-calendar-alt absolute left-3 top-3 text-cosmic-base"></i>
-                        <input type="date" id="return" className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-base"/>
+                        <input type="date" id="returnDate" 
+                        name="returnDate"
+                        value={formData.returnDate}
+                        onChange={handleChange}
+                        className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-base"/>
                     </div>
                 </div>
-                <div>
-                    <label htmlFor="passengers" className="block text-astronaut-dark font-medium mb-2">Personas</label>
+                <div >
+                    <label htmlFor="adult" className="block text-astronaut-dark font-medium mb-2">Personas</label>
                     <div className="relative">
                         <i className="fas fa-user absolute left-3 top-3 text-cosmic-base"></i>
-                        <select id="passengers" className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-base">
+                        <select id="adults" 
+                        name="adults"
+                        value={formData.passengers}
+                        onChange={handleChange}
+                        className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-base">
                             <option value="1">1 persona</option>
                             <option value="2">2 personas</option>
                             <option value="3">3 personas</option>
@@ -74,6 +146,20 @@ function SearchCard () {
             </form>
         </div>
     </section>
+     <section className="container mx-auto px-4 mt-10">
+        <h3 className="text-xl font-bold mb-4">Resultados:</h3>
+        {results.length > 0 ? (
+          <ul className="space-y-2">
+            {results.map((dest, index) => (
+              <li key={index} className="p-4 border rounded-lg shadow">
+                ✈️ {dest.destination} — desde {dest.price?.total || "N/A"} €
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No hay resultados aún.</p>
+        )}
+      </section>
 </div>
   );
 };

@@ -6,6 +6,7 @@
 package com.travelgo.backend_travelgo.model;
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.util.List;
 
 @Entity
 @Table (name ="usuarios")
@@ -18,27 +19,33 @@ private int id;
 @JoinColumn(name = "credencial_id", nullable = false)
 private Credencial credencial;
 
-@Column(name = "nombre_completo", length = 100)
-private String nombreCompleto;
+@Column(name = "primerNombre", length = 100)
+private String primerNombre;
+
+@Column(name = "primerApellido", length = 100)
+private String primerApellido;
 
 @Column(name = "telefono", length = 20)
 private String telefono;
 
-@Column(name = "nacionalidad", length = 50)
-private String nacionalidad;
+@Enumerated(EnumType.STRING)
+@Column(name = "nacionalidad", columnDefinition = "ENUM('Colombia','Mexico','Argentina','Ecuador','Peru','Bolivia','Chile','Paraguay','Uruguay','Panama','Costa_rica','Nicaragua','Honduras','Guatemala')")
+private Nacionalidad nacionalidad;
 
-@Column(name = "fecha_nacimiento")
+
+@Column(name = "fechaNacimiento")
 private LocalDate fechaNacimiento;
 
 @Enumerated(EnumType.STRING)
-@Column(name = "genero", columnDefinition = "ENUM('M', 'F', 'Otro')")
+@Column(name = "genero", columnDefinition = "ENUM('MALE', 'FEMALE', 'UNSPECIFIED')")
 private Genero genero;
 
  public Usuario() {
     }
 
-public Usuario (String nombreCompleto, String telefono,String nacionalidad,LocalDate fechaNacimiento, Genero genero ){
-        this.nombreCompleto = nombreCompleto;
+public Usuario (String primerNombre,String primerApellido, String telefono,Nacionalidad nacionalidad,LocalDate fechaNacimiento, Genero genero ){
+        this.primerNombre = primerNombre;
+        this.primerApellido = primerApellido;
         this.telefono = telefono;
         this.nacionalidad = nacionalidad;
         this.fechaNacimiento = fechaNacimiento;
@@ -53,15 +60,18 @@ public int getId() {
         return credencial;
     }
 
-    public String getNombreCompleto() {
-        return nombreCompleto;
+    public String getPrimerNombre() {
+        return primerNombre;
+    }
+    public String getPrimerApellido() {
+        return primerApellido;
     }
 
     public String getTelefono() {
         return telefono;
     }
 
-    public String getNacionalidad() {
+    public Nacionalidad getNacionalidad() {
         return nacionalidad;
     }
 
@@ -82,15 +92,19 @@ public int getId() {
         this.credencial = credencial;
     }
 
-    public void setNombreCompleto(String nombreCompleto) {
-        this.nombreCompleto = nombreCompleto;
+    public void setPrimerNombre(String primerNombre) {
+        this.primerNombre = primerNombre;
+    }
+
+    public void setPrimerApellido(String primerApellido) {
+        this.primerApellido = primerApellido;
     }
 
     public void setTelefono(String telefono) {
         this.telefono = telefono;
     }
 
-    public void setNacionalidad(String nacionalidad) {
+    public void setNacionalidad(Nacionalidad nacionalidad) {
         this.nacionalidad = nacionalidad;
     }
 
@@ -104,6 +118,9 @@ public int getId() {
 
     // Enum para genero
     public enum Genero {
-        M, F, Otro
+        MALE, FEMALE, UNSPECIFIED
+    }
+    public enum Nacionalidad {
+        Colombia,Mexico,Argentina,Ecuador,Peru,Bolivia,Chile,Paraguay,Uruguay,Panama,Costa_rica,Nicaragua,Honduras,Guatemala
     }
 }

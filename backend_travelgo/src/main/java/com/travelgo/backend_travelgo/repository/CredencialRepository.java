@@ -5,6 +5,7 @@
 
 package com.travelgo.backend_travelgo.repository;
 
+import java.util.Optional;
 import com.travelgo.backend_travelgo.model.Credencial;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -13,7 +14,7 @@ import java.util.Optional;
 
 @Repository
 public interface CredencialRepository extends JpaRepository<Credencial, Integer> {
-
+    Optional<Credencial> findByCorreo(String correo);
     boolean existsByCorreo(String correo);
     Optional<Credencial> findByCorreoAndContrasena(String correo, String contrasena);
 }

@@ -112,9 +112,10 @@ export default function Register() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {[
-              { id: "nombre_completo", label: "Nombre completo", type: "text" },,
+              { id: "primerNombre", label: "Primer Nombre", type: "text" },
+              { id: "primerApellido", label: "Primer Apellido", type: "text" },
               { id: "telefono", label: "Teléfono", type: "tel" },
-              { id: "nacionalidad", label: "Nacionalidad", type: "text" },
+              
               {
                 id: "fecha_nacimiento",
                 label: "Fecha de nacimiento",
@@ -141,8 +142,41 @@ export default function Register() {
                 />
               </div>
             ))}
+            {/*Nacionalidad*/}
+            <div>
+              <label
+                htmlFor="nacionalidad"
+                className="block text-sm font-medium  text-gray-700 dark:text-gray-600 mb-1"
+              >
+                Nacionalidad
+              </label>
+              <select
+                id="nacionalidad"
+                name="nacionalidad"
+                value={form.nacionalidad}
+                onChange={handleChange}
+                required
+                className="form-input w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-cosmic-base dark:focus:ring-astronaut-base dark:bg-[#2a3655] dark:text-white"
+              >
+                <option value="">Seleccione una opción</option>
+                <option value="Colombia">Colombia</option>
+                <option value="Mexico">México</option>
+                <option value="Argentina">Argentina</option>
+                <option value="Ecuador">Ecuador</option>
+                <option value="Peru">Perú</option>
+                <option value="Bolivia">Bolivia</option>
+                <option value="Chile">Chile</option>
+                <option value="Paraguay">Paraguay</option>
+                <option value="Uruguay">Uruguay</option>
+                <option value="Panamá">Panama</option>
+                <option value="Costa_rica">Costa rica</option>
+                <option value="Nicaragua">Nicaragua</option>
+                <option value="Honduras">Honduras</option>
+                <option value="Guatemala">Guatemala</option>
+              </select>
+            </div>
 
-            {/* Gender select */}
+            {/* Genero */}
             <div>
               <label
                 htmlFor="gender"
@@ -159,9 +193,9 @@ export default function Register() {
                 className="form-input w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-cosmic-base dark:focus:ring-astronaut-base dark:bg-[#2a3655] dark:text-white"
               >
                 <option value="">Seleccione una opción</option>
-                <option value="M">Masculino</option>
-                <option value="F">Femenino</option>
-                <option value="Otro">Otro</option>
+                <option value="MALE">Masculino</option>
+                <option value="FEMALE">Femenino</option>
+                <option value="UNSPECIFIED">Otro</option>
               </select>
             </div>
 
