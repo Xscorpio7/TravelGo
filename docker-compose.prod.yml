@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  # En producción, usa base de datos externa de Render
+  backend:
+    build:
+      context: ./backend_travelgo
+      dockerfile: Dockerfile.prod
+    environment:
+      SPRING_PROFILES_ACTIVE: production
+      # Variables que Render proporcionará
+      DATABASE_URL: ${DATABASE_URL}
+      SPRING_DATASOURCE_URL: ${DATABASE_URL}
+      PORT: ${PORT}
+    ports:
+      - "${PORT}:${PORT}"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    environment:
+      REACT_APP_API_URL: https://travelgo.onrender.com/api
+    ports:
+      - "80:80"

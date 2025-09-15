@@ -1,10 +1,12 @@
+version: '3.8'
+
 services:
+  # Base de datos MySQL
   mysql:
     image: mysql:8.0
-    container_name: travelgo-mysql
-    restart: always
+    container_name: travelgo_mysql
     environment:
-      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_ROOT_PASSWORD: 
       MYSQL_DATABASE: travelgo_bd
       MYSQL_USER: root
       MYSQL_PASSWORD: 
@@ -12,28 +14,60 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./database/travelgo_backup.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./database/my.cnf:/etc/mysql/conf.d/custom.cnf
+    networks:
+      - travelgo-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
 
+  # Backend Spring Boot
   backend:
-    build: ./backend_travelgo
-    container_name: travelgo-backend
-    restart: always
-    depends_on:
-      - mysql
+    build:
+      context: ./backend_travelgo
+      dockerfile: Dockerfile
+    container_name: travelgo_backend
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/travelgo_bd
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/travelgo_bd?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       SPRING_DATASOURCE_USERNAME: travelgo_user
-      SPRING_DATASOURCE_PASSWORD: travelgo_pass
+      SPRING_DATASOURCE_PASSWORD: travelgo_password
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQL8Dialect
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate  
     ports:
-      - "8080:8080"
+      - "9090:9090"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - travelgo-network
+    restart: unless-stopped
 
+  # Frontend React
   frontend:
-    build: ./frontend
-    container_name: travelgo-frontend
-    restart: always
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: travelgo_frontend
+    environment:
+      REACT_APP_API_URL: http://localhost:8080/api
+    ports:
+      - "3000:3000"
     depends_on:
       - backend
-    ports:
-      - "3000:80"
+    networks:
+      - travelgo-network
+    restart: unless-stopped
 
 volumes:
   mysql_data:
+
+networks:
+  travelgo-network:
+    driver: bridge

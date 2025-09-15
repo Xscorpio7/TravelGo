@@ -1,6 +1,8 @@
-node_modules
-build
-.dockerignore
-Dockerfile
-npm-debug.log
-.git
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.git/
+.gitignore
+README.md
+build/

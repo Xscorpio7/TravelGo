@@ -1,0 +1,35 @@
+services:
+  # Base de datos MySQL
+  - type: pserv
+    name: travelgo-database
+    env: docker
+    plan: starter
+    dockerfilePath: ./database/Dockerfile.db
+    databases:
+      - name: travelgo_db
+        databaseName: travelgo_db
+        user: travelgo_user
+
+  # Backend API
+  - type: web
+    name: travelgo-backend
+    env: docker
+    plan: starter
+    dockerfilePath: ./backend/Dockerfile.prod
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: travelgo_db
+          property: connectionString
+      - key: SPRING_PROFILES_ACTIVE
+        value: production
+
+  # Frontend
+  - type: web
+    name: travelgo-frontend
+    env: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./build
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://travelgo-backend.onrender.com/api
