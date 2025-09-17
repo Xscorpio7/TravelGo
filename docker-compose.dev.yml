@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: travelgo_db
+      MYSQL_USER: travelgo_user
+      MYSQL_PASSWORD: travelgo_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/travelgo_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: travelgo_user
+      SPRING_DATASOURCE_PASSWORD: travelgo_password
+      SERVER_PORT: 9090
+    ports:
+      - "9090:9090"
+    depends_on:
+      - mysql
+
+  # Frontend Vite (Desarrollo con hot reload)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    environment:
+      VITE_API_URL: http://localhost:9090/api
+    ports:
+      - "5173:5173"  # Puerto de Vite dev server
+    volumes:
+      # Hot reload - sincronizar cambios en tiempo real
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.js:/app/vite.config.js
+      - ./frontend/package.json:/app/package.json
+    depends_on:
+      - backend
+    stdin_open: true
+    tty: true
+
+volumes:
+  mysql_data:

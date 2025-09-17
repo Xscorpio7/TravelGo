@@ -22,5 +22,5 @@ RUN chmod +x /wait-for.sh
 
 ENV SPRING_PROFILES_ACTIVE=production
 
-EXPOSE 9090
+EXPOSE ${PORT}
 ENTRYPOINT ["/wait-for.sh", "mysql:3306", "--", "java", "-jar", "app.jar"]

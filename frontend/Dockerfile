@@ -11,7 +11,7 @@ COPY . .
 RUN npm run build
 
 # Servidor web nginx
-FROM nginx:alpine
+FROM nginx:alpin
 COPY --from=builder /app/build /usr/share/nginx/html
 
 # Configuración personalizada de nginx (opcional)
