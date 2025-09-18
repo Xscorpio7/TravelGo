@@ -1,35 +1,55 @@
+# render.yaml - Configuración de despliegue para TravelGo
 services:
-  # Base de datos MySQL
+  # Base de datos PostgreSQL (Render no soporta MySQL gratuito)
   - type: pserv
     name: travelgo-database
-    env: docker
-    plan: starter
-    dockerfilePath: ./database/Dockerfile.db
-    databases:
-      - name: travelgo_db
-        databaseName: travelgo_db
-        user: travelgo_user
+    databaseName: travelgo_db
+    user: travelgo_user
+    plan: free
 
-  # Backend API
+  # Backend Spring Boot API (Puerto 9090)
   - type: web
     name: travelgo-backend
     env: docker
-    plan: starter
-    dockerfilePath: ./backend/Dockerfile.prod
+    plan: free
+    region: oregon
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /api/actuator/health
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: travelgo_db
+          name: travelgo-database
           property: connectionString
       - key: SPRING_PROFILES_ACTIVE
         value: production
+      - key: SERVER_PORT
+        value: "9090"
+      - key: PORT
+        value: "9090"
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: travelgo-database
+          property: connectionString
+      - key: SPRING_JPA_DATABASE_PLATFORM
+        value: org.hibernate.dialect.PostgreSQLDialect
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: update
 
-  # Frontend
+  # Frontend React + Vite
   - type: web
     name: travelgo-frontend
     env: static
-    buildCommand: npm ci && npm run build
-    staticPublishPath: ./build
+    plan: free
+    region: oregon
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    pullRequestPreviewsEnabled: false
     envVars:
-      - key: REACT_APP_API_URL
+      - key: VITE_API_URL
         value: https://travelgo-backend.onrender.com/api
+      - key: VITE_APP_ENV
+        value: production
+      - key: VITE_APP_TITLE
+        value: TravelGo
+      - key: NODE_ENV
+        value: production
