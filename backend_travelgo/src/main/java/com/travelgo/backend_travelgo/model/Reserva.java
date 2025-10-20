@@ -1,114 +1,76 @@
 package com.travelgo.backend_travelgo.model;
 
 import jakarta.persistence.*;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "reservas")
+@Table(name = "pagina_de_reservas")
 public class Reserva {
-
+    
+    public enum Estado {
+        pendiente, confirmada, cancelada
+    }
+    
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
-
-    @ManyToOne
-    @JoinColumn(name = "usuario_id", nullable = false)
-    private Usuario usuario;
-
-    @ManyToOne
-    @JoinColumn(name = "viaje_id", nullable = false)
-    private Viaje viaje;
-
-    @ManyToOne
-    @JoinColumn(name = "alojamiento_id", nullable = false)
-    private Alojamiento alojamiento;
-
-    @ManyToOne
-    @JoinColumn(name = "transporte_id", nullable = false)
-    private Transporte transporte;
-
-    @Column(name = "fecha_reserva", nullable = false)
-    private LocalDateTime fechaReserva;
-
-
+    private Integer id;
+    
+    @Column(nullable = false, name = "usuario_id")
+    private Integer usuario_id;
+    
+    @Column(nullable = false, name = "viaje_id")
+    private Integer viaje_id;
+    
+    @Column(name = "alojamiento_id", nullable = true)
+    private Integer alojamiento_id;
+    
+    @Column(name = "transporte_id", nullable = true)
+    private Integer transporte_id;
+    
+    @Column(nullable = false, updatable = false, name = "fecha_reserva")
+    private LocalDateTime fecha_reserva;
+    
     @Enumerated(EnumType.STRING)
-    @Column(name = "estado", columnDefinition = "ENUM('pendiente', 'pagado', 'fallido')", nullable = false)
+    @Column(nullable = false, name = "estado")
     private Estado estado;
-
-    // Constructor vacío
-    public Reserva() {}
-
-    // Constructor completo
-    public Reserva(Usuario usuario, Viaje viaje, Alojamiento alojamiento, Transporte transporte,
-                   LocalDateTime fechaReserva, Estado estado) {
-        this.usuario = usuario;
-        this.viaje = viaje;
-        this.alojamiento = alojamiento;
-        this.transporte = transporte;
-        this.fechaReserva = fechaReserva;
-        this.estado = estado;
+    
+    @PrePersist
+    protected void onCreate() {
+        fecha_reserva = LocalDateTime.now();
+        if (estado == null) {
+            estado = Estado.pendiente;
+        }
     }
-
+    
+    // Constructores
+    public Reserva() {
+    }
+    
+    public Reserva(Integer usuario_id, Integer viaje_id) {
+        this.usuario_id = usuario_id;
+        this.viaje_id = viaje_id;
+        this.estado = Estado.pendiente;
+    }
+    
     // Getters y Setters
-
-    public int getId() {
-        return id;
-    }
-
-    public Usuario getUsuario() {
-        return usuario;
-    }
-
-    public Viaje getViaje() {
-        return viaje;
-    }
-
-    public Alojamiento getAlojamiento() {
-        return alojamiento;
-    }
-
-    public Transporte getTransporte() {
-        return transporte;
-    }
-
-    public LocalDateTime getFechaReserva() {
-        return fechaReserva;
-    }
-
-    public Estado getEstado() {
-        return estado;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public void setUsuario(Usuario usuario) {
-        this.usuario = usuario;
-    }
-
-    public void setViaje(Viaje viaje) {
-        this.viaje = viaje;
-    }
-
-    public void setAlojamiento(Alojamiento alojamiento) {
-        this.alojamiento = alojamiento;
-    }
-
-    public void setTransporte(Transporte transporte) {
-        this.transporte = transporte;
-    }
-
-    public void setFechaReserva(LocalDateTime fechaReserva) {
-        this.fechaReserva = fechaReserva;
-    }
-
-    public void setEstado(Estado estado) {
-        this.estado = estado;
-    }
-
-    public enum Estado {
-        pendiente, pagado, fallido
-    }
+    public Integer getId() { return id; }
+    public void setId(Integer id) { this.id = id; }
+    
+    public Integer getUsuario_id() { return usuario_id; }
+    public void setUsuario_id(Integer usuario_id) { this.usuario_id = usuario_id; }
+    
+    public Integer getViaje_id() { return viaje_id; }
+    public void setViaje_id(Integer viaje_id) { this.viaje_id = viaje_id; }
+    
+    public Integer getAlojamiento_id() { return alojamiento_id; }
+    public void setAlojamiento_id(Integer alojamiento_id) { this.alojamiento_id = alojamiento_id; }
+    
+    public Integer getTransporte_id() { return transporte_id; }
+    public void setTransporte_id(Integer transporte_id) { this.transporte_id = transporte_id; }
+    
+    public LocalDateTime getFecha_reserva() { return fecha_reserva; }
+    public void setFecha_reserva(LocalDateTime fecha_reserva) { this.fecha_reserva = fecha_reserva; }
+    
+    public Estado getEstado() { return estado; }
+    public void setEstado(Estado estado) { this.estado = estado; }
 }

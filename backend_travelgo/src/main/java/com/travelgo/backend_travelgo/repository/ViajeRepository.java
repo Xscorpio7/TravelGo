@@ -6,10 +6,13 @@
 package com.travelgo.backend_travelgo.repository;
 
 import com.travelgo.backend_travelgo.model.Viaje;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 
 public interface ViajeRepository extends JpaRepository<Viaje, Integer> {
+
+    public List<Viaje> findByOriginAndDestination(String origin, String destination);
     
 }

@@ -26,40 +26,40 @@ public class AmadeusConnect {
         
         try {
             this.amadeus = Amadeus.builder(clientId.trim(), clientSecret.trim())
-                .setHostname("test")  // Ambiente de TEST
+                .setHostname("test")
                 .build();
                 
-            logger.info("✅ Amadeus inicializado correctamente en modo TEST");
+            logger.info("Amadeus inicializado correctamente en modo TEST");
             
         } catch (Exception e) {
-            logger.error("❌ Error al inicializar Amadeus: {}", e.getMessage(), e);
+            logger.error("Error al inicializar Amadeus: {}", e.getMessage(), e);
             throw new RuntimeException("Error al inicializar Amadeus", e);
         }
     }
     
     /**
-     * Test simple de autenticación
+     * Test de autenticación
      */
     public boolean testAuthentication() {
         try {
-            logger.info("🔐 Probando autenticación...");
+            logger.info("Probando autenticación...");
             
             Location[] locations = amadeus.referenceData.locations.get(
                 Params.with("keyword", "LON")
                     .and("subType", Locations.AIRPORT)
             );
             
-            logger.info("✅ Autenticación exitosa - {} ubicaciones encontradas", locations.length);
+            logger.info("Autenticación exitosa - {} ubicaciones encontradas", locations.length);
             return true;
             
         } catch (Exception e) {
-            logger.error("❌ Fallo en autenticación: {}", e.getMessage());
+            logger.error("Fallo en autenticación: {}", e.getMessage());
             return false;
         }
     }
     
     /**
-     * Buscar ubicaciones
+     * Buscar ubicaciones/aeropuertos
      */
     public Location[] location(String keyword) throws ResponseException {
         logger.info("🔍 Buscando ubicaciones para: {}", keyword);
@@ -70,20 +70,17 @@ public class AmadeusConnect {
                     .and("subType", Locations.AIRPORT)
             );
             
-            logger.info("✅ Encontradas {} ubicaciones", locations.length);
+            logger.info("Encontradas {} ubicaciones", locations.length);
             return locations;
             
         } catch (ResponseException e) {
-            logger.error("❌ Error en búsqueda de ubicaciones: {}", e.getMessage());
+            logger.error("Error en búsqueda de ubicaciones: {}", e.getMessage());
             throw e;
-        } catch (Exception e) {
-            logger.error("❌ Error inesperado en ubicaciones: {}", e.getMessage(), e);
-            throw new RuntimeException("Error en búsqueda de ubicaciones", e);
         }
     }
     
     /**
-     * Buscar vuelos
+     * Buscar vuelos SOLO IDA (sin fecha de regreso)
      */
     public FlightOfferSearch[] searchFlights(String originLocationCode, 
                                            String destinationLocationCode, 
@@ -91,56 +88,83 @@ public class AmadeusConnect {
                                            int adults, 
                                            int max) throws ResponseException {
         
-        logger.info("🛫 Iniciando búsqueda de vuelos...");
-        logger.info("   Origen: {}", originLocationCode);
-        logger.info("   Destino: {}", destinationLocationCode); 
-        logger.info("   Fecha: {}", departureDate);
-        logger.info("   Adultos: {}", adults);
-        logger.info("   Max resultados: {}", max);
+        logger.info("Búsqueda de vuelo SOLO IDA:");
+        logger.info("   {} -> {}, Salida: {}, Adultos: {}, Max: {}", 
+                   originLocationCode, destinationLocationCode, departureDate, adults, max);
         
         try {
-            // Validaciones básicas
-            if (originLocationCode == null || originLocationCode.trim().isEmpty()) {
-                throw new IllegalArgumentException("Origin location code no puede estar vacío");
-            }
+            Params params = Params.with("originLocationCode", originLocationCode.trim())
+                .and("destinationLocationCode", destinationLocationCode.trim())
+                .and("departureDate", departureDate.trim())
+                .and("adults", adults)
+                .and("max", max);
             
-            if (destinationLocationCode == null || destinationLocationCode.trim().isEmpty()) {
-                throw new IllegalArgumentException("Destination location code no puede estar vacío");
-            }
+            logger.info("Llamando a Amadeus API (solo ida)...");
             
-            if (departureDate == null || departureDate.trim().isEmpty()) {
-                throw new IllegalArgumentException("Departure date no puede estar vacío");
-            }
+            FlightOfferSearch[] flightOffers = amadeus.shopping.flightOffersSearch.get(params);
             
-            logger.info("📡 Llamando a Amadeus API...");
-            
-            FlightOfferSearch[] flightOffers = amadeus.shopping.flightOffersSearch.get(
-                Params.with("originLocationCode", originLocationCode.trim())
-                    .and("destinationLocationCode", destinationLocationCode.trim())
-                    .and("departureDate", departureDate.trim())
-                    .and("adults", adults)
-                    .and("max", max)
-            );
-            
-            logger.info("✅ Amadeus API respondió exitosamente");
-            logger.info("✅ Se encontraron {} ofertas de vuelo", flightOffers.length);
-            
+            logger.info("Encontrados {} vuelos de ida", flightOffers.length);
             return flightOffers;
             
         } catch (ResponseException e) {
-            logger.error("❌ Error de Amadeus API:");
-            logger.error("   Status Code: {}", e.getResponse() != null ? e.getResponse().getStatusCode() : "N/A");
-            logger.error("   Message: {}", e.getMessage());
-            logger.error("   Body: {}", e.getResponse() != null ? e.getResponse().getBody() : "N/A");
+            logger.error("Error Amadeus API: Status={}, Message={}", 
+                e.getResponse() != null ? e.getResponse().getStatusCode() : "N/A",
+                e.getMessage());
             throw e;
-            
-        } catch (IllegalArgumentException e) {
-            logger.error("❌ Error de validación: {}", e.getMessage());
-            throw new RuntimeException(e.getMessage(), e);
-            
         } catch (Exception e) {
-            logger.error("❌ Error inesperado en búsqueda de vuelos: {}", e.getMessage(), e);
-            throw new RuntimeException("Error interno en búsqueda de vuelos", e);
+            logger.error("Error inesperado: {}", e.getMessage(), e);
+            throw new RuntimeException("Error en búsqueda de vuelos", e);
+        }
+    }
+    
+    /**
+     * Buscar vuelos IDA Y VUELTA (con fecha de regreso)
+     */
+    public FlightOfferSearch[] searchRoundTripFlights(String originLocationCode, 
+                                                     String destinationLocationCode, 
+                                                     String departureDate,
+                                                     String returnDate,
+                                                     int adults, 
+                                                     int max) throws ResponseException {
+        
+        logger.info("Búsqueda de vuelo IDA Y VUELTA:");
+        logger.info("   {} -> {}, Salida: {}, Regreso: {}, Adultos: {}, Max: {}", 
+                   originLocationCode, destinationLocationCode, departureDate, returnDate, adults, max);
+        
+        try {
+            // Validar que returnDate sea posterior a departureDate
+            if (returnDate != null && !returnDate.trim().isEmpty()) {
+                if (returnDate.compareTo(departureDate) <= 0) {
+                    throw new IllegalArgumentException(
+                        "La fecha de regreso debe ser posterior a la fecha de salida");
+                }
+            }
+            
+            Params params = Params.with("originLocationCode", originLocationCode.trim())
+                .and("destinationLocationCode", destinationLocationCode.trim())
+                .and("departureDate", departureDate.trim())
+                .and("returnDate", returnDate.trim())  // Fecha de regreso
+                .and("adults", adults)
+                .and("max", max);
+            
+            logger.info("Llamando a Amadeus API (ida y vuelta)...");
+            
+            FlightOfferSearch[] flightOffers = amadeus.shopping.flightOffersSearch.get(params);
+            
+            logger.info("Encontrados {} vuelos de ida y vuelta", flightOffers.length);
+            return flightOffers;
+            
+        } catch (ResponseException e) {
+            logger.error("Error Amadeus API: Status={}, Message={}", 
+                e.getResponse() != null ? e.getResponse().getStatusCode() : "N/A",
+                e.getMessage());
+            throw e;
+        } catch (IllegalArgumentException e) {
+            logger.error("Error de validación: {}", e.getMessage());
+            throw new RuntimeException(e.getMessage(), e);
+        } catch (Exception e) {
+            logger.error("Error inesperado: {}", e.getMessage(), e);
+            throw new RuntimeException("Error en búsqueda de vuelos", e);
         }
     }
 }

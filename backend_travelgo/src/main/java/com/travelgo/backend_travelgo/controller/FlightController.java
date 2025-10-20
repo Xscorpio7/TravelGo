@@ -15,8 +15,6 @@ import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.Map;
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-
 
 @RestController
 @RequestMapping("/flights")
@@ -25,6 +23,7 @@ public class FlightController {
 
     private static final Logger logger = LoggerFactory.getLogger(FlightController.class);
     private final AmadeusConnect amadeusConnect;
+    private final Gson gson = new Gson();
 
     public FlightController(AmadeusConnect amadeusConnect) {
         this.amadeusConnect = amadeusConnect;
@@ -54,71 +53,142 @@ public class FlightController {
     }
     
     @GetMapping(value = "/locations", produces = "application/json")
-public ResponseEntity<String> locations(@RequestParam String keyword) {
-    logger.info("Búsqueda solicitada para: {}", keyword);
+    public ResponseEntity<String> locations(@RequestParam String keyword) {
+        logger.info("Búsqueda solicitada para: {}", keyword);
 
-    try {
-        if (amadeusConnect == null) {
+        try {
+            if (amadeusConnect == null) {
+                return ResponseEntity.internalServerError()
+                        .body("{\"error\":\"AmadeusConnect es null\"}");
+            }
+
+            Location[] locations = amadeusConnect.location(keyword);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "SUCCESS");
+            response.put("data", locations);
+            response.put("count", locations.length);
+
+            String jsonResponse = gson.toJson(response);
+            return ResponseEntity.ok(jsonResponse);
+
+        } catch (ResponseException e) {
+            return ResponseEntity.badRequest()
+                    .body("{\"error\":\"Error Amadeus: " + e.getMessage().replace("\"", "'") + "\"}");
+        } catch (Exception e) {
             return ResponseEntity.internalServerError()
-                    .body("{\"error\":\"AmadeusConnect es null\"}");
+                    .body("{\"error\":\"Error: " + e.getMessage().replace("\"", "'") + "\"}");
         }
-
-        Location[] locations = amadeusConnect.location(keyword);
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("status", "SUCCESS");
-        response.put("data", locations);
-        response.put("count", locations.length);
-
-        // 🔑 Convertir a JSON válido usando Gson
-        String jsonResponse = new com.google.gson.Gson().toJson(response);
-
-        return ResponseEntity.ok(jsonResponse);
-
-    } catch (ResponseException e) {
-        return ResponseEntity.badRequest()
-                .body("{\"error\":\"Error Amadeus: " + e.getMessage() + "\"}");
-    } catch (Exception e) {
-        return ResponseEntity.internalServerError()
-                .body("{\"error\":\"Error: " + e.getMessage() + "\"}");
     }
-}
 
-    
     @GetMapping(value = "/search", produces = "application/json")
-public ResponseEntity<String> search(
-        @RequestParam String origin,
-        @RequestParam String destination,
-        @RequestParam String departure,
-        @RequestParam int adults,
-        @RequestParam(defaultValue = "10") int max) {
+    public ResponseEntity<String> search(
+            @RequestParam String origin,
+            @RequestParam String destination,
+            @RequestParam String departure,
+            @RequestParam(required = false) String returnDate,  // ⭐ OPCIONAL
+            @RequestParam(defaultValue = "1") int adults,
+            @RequestParam(defaultValue = "10") int max) {
 
-    logger.info("Búsqueda de vuelos: {} -> {}, fecha: {}, adultos: {}", origin, destination, departure, adults);
+        logger.info("🛫 Búsqueda de vuelos: {} -> {}, Salida: {}, Regreso: {}, Adultos: {}", 
+                   origin, destination, departure, returnDate != null ? returnDate : "N/A", adults);
 
-    try {
-        FlightOfferSearch[] flights = amadeusConnect.searchFlights(origin, destination, departure, adults, max);
+        try {
+            if (origin == null || origin.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body("{\"error\":\"El parámetro 'origin' es requerido\"}");
+            }
+            
+            if (destination == null || destination.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body("{\"error\":\"El parámetro 'destination' es requerido\"}");
+            }
+            
+            if (departure == null || departure.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body("{\"error\":\"El parámetro 'departure' es requerido (formato: YYYY-MM-DD)\"}");
+            }
+            try {
+                LocalDate departureDate = LocalDate.parse(departure, DateTimeFormatter.ISO_LOCAL_DATE);
+                if (departureDate.isBefore(LocalDate.now())) {
+                    return ResponseEntity.badRequest()
+                        .body("{\"error\":\"La fecha de salida no puede ser en el pasado\"}");
+                }
+                if (returnDate != null && !returnDate.trim().isEmpty()) {
+                    LocalDate returnLocalDate = LocalDate.parse(returnDate, DateTimeFormatter.ISO_LOCAL_DATE);
+                    
+                    if (returnLocalDate.isBefore(departureDate)) {
+                        return ResponseEntity.badRequest()
+                            .body("{\"error\":\"La fecha de regreso debe ser posterior a la fecha de salida\"}");
+                    }
+                }
+            } catch (DateTimeParseException e) {
+                return ResponseEntity.badRequest()
+                    .body("{\"error\":\"Formato de fecha incorrecto. Use YYYY-MM-DD\"}");
+            }
+            
+            if (adults < 1 || adults > 9) {
+                return ResponseEntity.badRequest()
+                    .body("{\"error\":\"El número de adultos debe estar entre 1 y 9\"}");
+            }
+            
+            FlightOfferSearch[] flights;
+            
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("status", "SUCCESS");
-        response.put("data", flights);
-        response.put("count", flights.length);
+            if (returnDate != null && !returnDate.trim().isEmpty()) {
+                logger.info("Búsqueda IDA Y VUELTA");
+                flights = amadeusConnect.searchRoundTripFlights(
+                    origin.toUpperCase().trim(), 
+                    destination.toUpperCase().trim(), 
+                    departure.trim(),
+                    returnDate.trim(),
+                    adults, 
+                    max
+                );
+            } else {
+                logger.info("➡️ Búsqueda SOLO IDA");
+                flights = amadeusConnect.searchFlights(
+                    origin.toUpperCase().trim(), 
+                    destination.toUpperCase().trim(), 
+                    departure.trim(), 
+                    adults, 
+                    max
+                );
+            }
 
-        // 🔑 Convertir todo el mapa a JSON válido con Gson
-        String json = new com.google.gson.Gson().toJson(response);
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "SUCCESS");
+            response.put("data", flights);
+            response.put("count", flights.length);
+            response.put("tripType", returnDate != null && !returnDate.trim().isEmpty() ? "round-trip" : "one-way");
+            response.put("search", Map.of(
+                "origin", origin.toUpperCase().trim(),
+                "destination", destination.toUpperCase().trim(),
+                "departure", departure.trim(),
+                "returnDate", returnDate != null ? returnDate.trim() : "N/A",
+                "adults", adults,
+                "max", max
+            ));
 
-        return ResponseEntity.ok(json);
+            String json = gson.toJson(response);
+            logger.info("Búsqueda exitosa: {} vuelos encontrados", flights.length);
 
-    } catch (Exception e) {
-        logger.error("Error en búsqueda de vuelos", e);
-        return ResponseEntity.internalServerError()
-                .body("{\"error\":\"" + e.getMessage() + "\"}");
+            return ResponseEntity.ok(json);
+
+        } catch (ResponseException e) {
+            logger.error("Error de Amadeus API", e);
+            String errorMsg = e.getMessage() != null ? e.getMessage().replace("\"", "'") : "Error desconocido";
+            return ResponseEntity.badRequest()
+                    .body("{\"error\":\"Error Amadeus: " + errorMsg + "\"}");
+                    
+        } catch (Exception e) {
+            logger.error("Error en búsqueda de vuelos", e);
+            String errorMsg = e.getMessage() != null ? e.getMessage().replace("\"", "'") : "Error interno";
+            return ResponseEntity.internalServerError()
+                    .body("{\"error\":\"" + errorMsg + "\"}");
+        }
     }
-}
     
-    /**
-     * NUEVO: Ejemplo específico como tu código original
-     * GET /flights/example
-     */
     @GetMapping("/example")
     public ResponseEntity<Map<String, Object>> exampleSearch() {
         logger.info("Ejemplo de búsqueda MAD -> ATH");
@@ -131,16 +201,10 @@ public ResponseEntity<String> search(
                 return ResponseEntity.internalServerError().body(response);
             }
             
-            // Replicar tu búsqueda original: MAD -> ATH
             FlightOfferSearch[] flights = amadeusConnect.searchFlights(
-                "MAD",     // Madrid
-                "ATH",     // Athens
-                "2024-11-01", // Fecha de salida (corregí tu fecha 2622-11-01)
-                1,         // 1 adulto
-                1          // máximo 1 resultado
+                "MAD", "ATH", "2025-01-15", 1, 1
             );
             
-            // Verificar respuesta como en tu código original
             if (flights.length > 0 && flights[0].getResponse().getStatusCode() != 200) {
                 logger.warn("Wrong status code: {}", flights[0].getResponse().getStatusCode());
                 response.put("error", "Wrong status code: " + flights[0].getResponse().getStatusCode());
@@ -151,10 +215,6 @@ public ResponseEntity<String> search(
             response.put("message", "Ejemplo de búsqueda MAD -> ATH completado");
             response.put("data", flights);
             response.put("count", flights.length);
-            
-            if (flights.length > 0) {
-                logger.info("Primer vuelo encontrado: {}", flights[0]);
-            }
             
             return ResponseEntity.ok(response);
             
