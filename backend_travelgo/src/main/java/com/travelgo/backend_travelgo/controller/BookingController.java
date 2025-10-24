@@ -80,7 +80,7 @@ public class BookingController {
                 }
             }
             
-            viaje.setPrice(new BigDecimal(flightData.get("price").toString()));
+            viaje.setPrecio(new BigDecimal(flightData.get("price").toString()));
             viaje.setCurrency((String) flightData.get("currency"));
             viaje.setAirline((String) flightData.get("airline"));
             viaje.setAirlineName((String) flightData.get("airlineName"));
@@ -110,11 +110,7 @@ public class BookingController {
             return ResponseEntity.internalServerError().body(error);
         }
     }
-    
-    /**
-     * Crear una reserva
-     * POST /api/bookings/reservations
-     */
+   
     @PostMapping("/reservations")
     public ResponseEntity<?> createReservation(
             @RequestBody Map<String, Object> reservaData,

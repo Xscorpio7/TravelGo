@@ -2,6 +2,7 @@ package com.travelgo.backend_travelgo.controller;
 
 import com.travelgo.backend_travelgo.model.Viaje;
 import com.travelgo.backend_travelgo.repository.ViajeRepository;
+import java.math.BigDecimal;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -97,7 +98,7 @@ public class ViajeController {
                 return ResponseEntity.badRequest().body(error);
             }
             
-            if (viajeDetails.getPrice() == null || viajeDetails.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
+            if (viajeDetails.getPrecio() == null || viajeDetails.getPrecio().compareTo(BigDecimal.ZERO) <= 0) {
     Map<String, String> error = new HashMap<>();
     error.put("error", "El precio debe ser mayor a 0");
     return ResponseEntity.badRequest().body(error);
@@ -157,8 +158,8 @@ public class ViajeController {
             if (viajeDetails.getReturnDate() != null) {
                 viaje.setReturnDate(viajeDetails.getReturnDate());
             }
-            if (viajeDetails.getPrice() != null && viajeDetails.getPrice().compareTo(BigDecimal.ZERO) > 0) {
-    viaje.setPrice(viajeDetails.getPrice());
+            if (viajeDetails.getPrecio()!= null && viajeDetails.getPrecio().compareTo(BigDecimal.ZERO) > 0) {
+    viaje.setPrecio(viajeDetails.getPrecio());
 }
             if (viajeDetails.getCurrency() != null) {
                 viaje.setCurrency(viajeDetails.getCurrency());

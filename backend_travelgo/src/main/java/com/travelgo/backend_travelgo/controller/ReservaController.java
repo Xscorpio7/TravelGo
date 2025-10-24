@@ -51,27 +51,34 @@ public class ReservaController {
      * GET /api/reservas/{id}
      */
     @GetMapping("/{id}")
-    public ResponseEntity<?> getReservaById(@PathVariable Integer id) {
-        try {
-            logger.info("Obteniendo reserva: {}", id);
-            
-            return reservaRepository.findById(id)
-                    .map(reserva -> {
-                        Map<String, Object> response = new HashMap<>();
-                        response.put("status", "SUCCESS");
-                        response.put("data", reserva);
-                        return ResponseEntity.ok(response);
-                    })
-                    .orElse(ResponseEntity.status(404).body(new HashMap<String, String>() {{
-                        put("error", "Reserva no encontrada");
-                    }}));
-        } catch (Exception e) {
-            logger.error("Error al obtener reserva: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Error al obtener reserva: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(error);
-        }
+public ResponseEntity<Map<String, Object>> getReservaById(@PathVariable Integer id) {
+    Map<String, Object> response = new HashMap<>();
+
+    try {
+        logger.info("Obteniendo reserva: {}", id);
+
+        return reservaRepository.findById(id)
+                .map(reserva -> {
+                    response.put("status", "SUCCESS");
+                    response.put("message", "Reserva obtenida correctamente");
+                    response.put("data", reserva);
+                    return ResponseEntity.ok(response);
+                })
+                .orElseGet(() -> {
+                    response.put("status", "ERROR");
+                    response.put("message", "Reserva no encontrada");
+                    response.put("data", null);
+                    return ResponseEntity.status(404).body(response);
+                });
+
+    } catch (Exception e) {
+        logger.error("Error al obtener reserva: {}", e.getMessage());
+        response.put("status", "ERROR");
+        response.put("message", "Error al obtener reserva: " + e.getMessage());
+        response.put("data", null);
+        return ResponseEntity.internalServerError().body(response);
     }
+}
     
     /**
      * Crear una nueva reserva
@@ -110,51 +117,57 @@ public class ReservaController {
      * Actualizar una reserva existente
      * PUT /api/reservas/{id}
      */
-    @PutMapping("/{id}")
-    public ResponseEntity<?> updateReserva(@PathVariable Integer id, @RequestBody Reserva reservaDetails) {
-        try {
-            logger.info("Actualizando reserva: {}", id);
-            
-            return reservaRepository.findById(id)
-                    .map(reserva -> {
-                        // Actualizar campos de la reserva
-                        if (reservaDetails.getUsuario_id() != null) {
-                            reserva.setUsuario_id(reservaDetails.getUsuario_id());
-                        }
-                        if (reservaDetails.getViaje_id() != null) {
-                            reserva.setViaje_id(reservaDetails.getViaje_id());
-                        }
-                        if (reservaDetails.getAlojamiento_id() != null) {
-                            reserva.setAlojamiento_id(reservaDetails.getAlojamiento_id());
-                        }
-                        if (reservaDetails.getTransporte_id() != null) {
-                            reserva.setTransporte_id(reservaDetails.getTransporte_id());
-                        }
-                        if (reservaDetails.getEstado() != null) {
-                            reserva.setEstado(reservaDetails.getEstado());
-                        }
-                        
-                        Reserva reservaActualizada = reservaRepository.save(reserva);
-                        
-                        logger.info("Reserva actualizada exitosamente: {}", id);
-                        
-                        Map<String, Object> response = new HashMap<>();
-                        response.put("status", "SUCCESS");
-                        response.put("message", "Reserva actualizada correctamente");
-                        response.put("data", reservaActualizada);
-                        
-                        return ResponseEntity.ok(response);
-                    })
-                    .orElse(ResponseEntity.status(404).body(new HashMap<String, String>() {{
-                        put("error", "Reserva no encontrada");
-                    }}));
-        } catch (Exception e) {
-            logger.error("Error al actualizar reserva: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Error al actualizar reserva: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(error);
-        }
+    @PutMapping("/reservas/{id}")
+public ResponseEntity<Map<String, Object>> updateReserva(@PathVariable Integer id, @RequestBody Reserva reservaDetails) {
+    Map<String, Object> response = new HashMap<>();
+
+    try {
+        logger.info("Actualizando reserva: {}", id);
+
+        return reservaRepository.findById(id)
+                .map(reserva -> {
+                    // Actualizar campos
+                    if (reservaDetails.getUsuario_id() != null) {
+                        reserva.setUsuario_id(reservaDetails.getUsuario_id());
+                    }
+                    if (reservaDetails.getViaje_id() != null) {
+                        reserva.setViaje_id(reservaDetails.getViaje_id());
+                    }
+                    if (reservaDetails.getAlojamiento_id() != null) {
+                        reserva.setAlojamiento_id(reservaDetails.getAlojamiento_id());
+                    }
+                    if (reservaDetails.getTransporte_id() != null) {
+                        reserva.setTransporte_id(reservaDetails.getTransporte_id());
+                    }
+                    if (reservaDetails.getEstado() != null) {
+                        reserva.setEstado(reservaDetails.getEstado());
+                    }
+
+                    Reserva reservaActualizada = reservaRepository.save(reserva);
+
+                    logger.info("Reserva actualizada exitosamente: {}", id);
+
+                    response.put("status", "SUCCESS");
+                    response.put("message", "Reserva actualizada correctamente");
+                    response.put("data", reservaActualizada);
+
+                    return ResponseEntity.ok(response);
+                })
+                .orElseGet(() -> {
+                    response.put("status", "ERROR");
+                    response.put("message", "Reserva no encontrada");
+                    response.put("data", null);
+                    return ResponseEntity.status(404).body(response);
+                });
+
+    } catch (Exception e) {
+        logger.error("Error al actualizar reserva: {}", e.getMessage());
+        response.put("status", "ERROR");
+        response.put("message", "Error al actualizar reserva: " + e.getMessage());
+        response.put("data", null);
+        return ResponseEntity.internalServerError().body(response);
     }
+}
     
     /**
      * Eliminar una reserva
