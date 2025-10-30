@@ -200,7 +200,7 @@ public class BookingController {
             
             logger.info("Obteniendo reservas para usuario: {}", usuarioId);
             
-            List<Reserva> reservas = reservaRepository.findByUsuario_id(usuarioId);
+            List<Reserva> reservas = reservaRepository.findByUsuarioId(usuarioId);
             
             Map<String, Object> response = new HashMap<>();
             response.put("status", "SUCCESS");

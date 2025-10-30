@@ -235,7 +235,7 @@ public class ViajeController {
             List<Viaje> viajes;
             
             if (origin != null && destination != null) {
-                viajes = viajeRepository.findByOriginAndDestination(origin, destination);
+                viajes = viajeRepository.findByOriginAndDestino(origin, destination);
             } else {
                 viajes = viajeRepository.findAll();
             }

@@ -11,8 +11,36 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 
-public interface ViajeRepository extends JpaRepository<Viaje, Integer> {
+import java.util.List;
+import java.util.Optional;
 
-    public List<Viaje> findByOriginAndDestination(String origin, String destination);
+@Repository
+public interface ViajeRepository extends JpaRepository<Viaje, Integer> {
     
+   
+    List<Viaje> findByOriginAndDestino(String origin, String destino);
+    
+    
+    List<Viaje> findByOrigin(String origin);
+    
+   
+    List<Viaje> findByDestino(String destino);
+    
+    
+    List<Viaje> findByDestinationCode(String destinationCode);
+    
+    
+    Optional<Viaje> findByFlightOfferId(String flightOfferId);
+    
+    
+    List<Viaje> findByTipoViaje(String tipoViaje);
+    
+  
+    List<Viaje> findByAirline(String airline);
+    
+   
+    List<Viaje> findByJourneyType(String journeyType);
+    
+  
+    List<Viaje> findByBookableSeatsGreaterThan(Integer seats);
 }

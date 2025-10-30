@@ -1,8 +1,8 @@
 import { useState } from "react";
 import axios from "axios";
 import { FaMapMarkedAlt } from "react-icons/fa";
-import { useAuth } from "../hooks/useAuth";
-import LoginModal from "./LoginModal";
+//import { useAuth } from "../hooks/useAuth";
+//import LoginModal from "./LoginModal";
 function SearchCard() {
   const [formData, setFormData] = useState({
     origin: "",
@@ -17,7 +17,7 @@ function SearchCard() {
   const [error, setError] = useState("");
 
 
-  const { isAuthenticated, user } = useAuth();
+  //const { isAuthenticated, user } = useAuth();
 
   
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -306,11 +306,7 @@ function SearchCard() {
           <p className="text-gray-500">No hay resultados aún. Realiza una búsqueda para ver vuelos disponibles.</p>
         )}
       </section>
-      <LoginModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-        flight={selectedFlight}
-      />
+      
     </div>
   );
 }

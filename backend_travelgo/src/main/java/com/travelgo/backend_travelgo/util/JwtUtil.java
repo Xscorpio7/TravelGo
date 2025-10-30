@@ -1,19 +1,17 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.travelgo.backend_travelgo.util;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Component;  // ⭐ AGREGAR ESTE IMPORT
 
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+
+@Component  // ⭐ AGREGAR ESTA ANOTACIÓN
 public class JwtUtil {
     // Clave secreta para firmar el JWT (en producción debe estar en variables de entorno)
     private static final String SECRET_KEY = "TravelGoSecretKeyForJWT2024MustBe256BitsLongForHS256Algorithm";
