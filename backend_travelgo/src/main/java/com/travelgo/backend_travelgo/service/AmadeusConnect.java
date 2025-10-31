@@ -5,23 +5,44 @@ import com.amadeus.Params;
 import com.amadeus.resources.Location;
 import com.amadeus.resources.FlightOfferSearch;
 import com.amadeus.resources.Hotel;
-import com.amadeus.resources.TransferOffering;
 import com.amadeus.exceptions.ResponseException;
 import com.amadeus.referencedata.Locations;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.http.*;
+import org.springframework.web.client.RestTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class AmadeusConnect {
     
     private static final Logger logger = LoggerFactory.getLogger(AmadeusConnect.class);
     private final Amadeus amadeus;
+    private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
+    private final String clientId;
+    private final String clientSecret;
+    private String accessToken;
+    private long tokenExpiration = 0;
+    
+    // URLs de Amadeus API
+    private static final String AMADEUS_AUTH_URL = "https://test.api.amadeus.com/v1/security/oauth2/token";
+    private static final String AMADEUS_TRANSFER_URL = "https://test.api.amadeus.com/v1/shopping/transfer-offers";
     
     public AmadeusConnect(
             @Value("${amadeus.client.id}") String clientId,
             @Value("${amadeus.client.secret}") String clientSecret) {
+        
+        this.clientId = clientId;
+        this.clientSecret = clientSecret;
+        this.restTemplate = new RestTemplate();
+        this.objectMapper = new ObjectMapper();
         
         logger.info("=== INICIALIZANDO AMADEUS ===");
         logger.info("Client ID: {}", clientId != null ? clientId.substring(0, Math.min(8, clientId.length())) + "..." : "null");
@@ -31,11 +52,59 @@ public class AmadeusConnect {
                 .setHostname("test")
                 .build();
                 
-            logger.info("✅ Amadeus inicializado correctamente en modo TEST");
+            logger.info("✅ Amadeus SDK inicializado correctamente en modo TEST");
+            
+            // Obtener token inicial para Transfer API
+            getAccessToken();
+            logger.info("✅ Token de acceso obtenido para Transfer API");
             
         } catch (Exception e) {
             logger.error("❌ Error al inicializar Amadeus: {}", e.getMessage(), e);
             throw new RuntimeException("Error al inicializar Amadeus", e);
+        }
+    }
+    
+    /**
+     * Obtener token de acceso OAuth2 para Transfer API
+     */
+    private String getAccessToken() {
+        try {
+            // Verificar si el token actual sigue válido
+            if (accessToken != null && System.currentTimeMillis() < tokenExpiration) {
+                return accessToken;
+            }
+            
+            logger.info("🔐 Obteniendo nuevo token de acceso...");
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+            
+            String body = "grant_type=client_credentials&client_id=" + clientId + 
+                         "&client_secret=" + clientSecret;
+            
+            HttpEntity<String> request = new HttpEntity<>(body, headers);
+            
+            ResponseEntity<JsonNode> response = restTemplate.postForEntity(
+                AMADEUS_AUTH_URL, request, JsonNode.class
+            );
+            
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                JsonNode json = response.getBody();
+                accessToken = json.get("access_token").asText();
+                int expiresIn = json.get("expires_in").asInt();
+                
+                // Guardar tiempo de expiración (con margen de 5 minutos)
+                tokenExpiration = System.currentTimeMillis() + ((expiresIn - 300) * 1000L);
+                
+                logger.info("✅ Token obtenido exitosamente. Expira en {} segundos", expiresIn);
+                return accessToken;
+            }
+            
+            throw new RuntimeException("Error al obtener token de acceso");
+            
+        } catch (Exception e) {
+            logger.error("❌ Error al obtener token: {}", e.getMessage());
+            throw new RuntimeException("Error de autenticación con Amadeus", e);
         }
     }
     
@@ -61,7 +130,7 @@ public class AmadeusConnect {
     }
     
     // ========================================
-    // VUELOS (Ya implementado)
+    // VUELOS
     // ========================================
     
     public Location[] location(String keyword) throws ResponseException {
@@ -169,7 +238,7 @@ public class AmadeusConnect {
     }
     
     // ========================================
-    // HOTELES (Ya implementado)
+    // HOTELES
     // ========================================
     
     public Hotel[] searchHotelsByCity(String cityCode) throws ResponseException {
@@ -244,91 +313,125 @@ public class AmadeusConnect {
     }
     
     // ========================================
-    // ⭐ TRANSFERS (NUEVO)
+    // ⭐ TRANSFERS - Llamadas HTTP Directas
     // ========================================
     
     /**
-     * Buscar transfers desde aeropuerto
-     * @param airportCode Código IATA del aeropuerto (ej: "ATH", "MAD")
-     * @param cityName Nombre de la ciudad (ej: "Athens", "Madrid")
-     * @param countryCode Código ISO del país (ej: "GR", "ES")
-     * @param dateTime Fecha y hora en formato ISO 8601 (ej: "2025-12-15T10:00:00")
-     * @param passengers Número de pasajeros
-     * @return Array de TransferOffering
+     * Buscar transfers desde aeropuerto a dirección
+     * @param startLocationCode Código IATA del aeropuerto (ej: "MAD")
+     * @param endAddressLine Dirección de destino
+     * @param endCityName Ciudad de destino
+     * @param endZipCode Código postal (opcional)
+     * @param endCountryCode Código del país ISO 3166-1 (ej: "ES")
+     * @param startDateTime Fecha y hora ISO 8601 (ej: "2025-11-20T10:30:00")
+     * @param passengers Número de pasajeros (1-99)
+     * @param transferType Tipo: "PRIVATE" o "SHARED"
+     * @return JsonNode con ofertas de transfer
      */
-    public TransferOffering[] searchAirportTransfers(String airportCode, 
-                                                     String cityName,
-                                                     String countryCode, 
-                                                     String dateTime, 
-                                                     int passengers) throws ResponseException {
+    public JsonNode searchTransfers(
+            String startLocationCode,
+            String endAddressLine,
+            String endCityName,
+            String endZipCode,
+            String endCountryCode,
+            String startDateTime,
+            int passengers,
+            String transferType) {
         
-        logger.info("🚗 Búsqueda de transfers desde aeropuerto:");
-        logger.info("   Aeropuerto: {} -> Ciudad: {}, País: {}", airportCode, cityName, countryCode);
-        logger.info("   Fecha/Hora: {}, Pasajeros: {}", dateTime, passengers);
+        logger.info("🚗 Búsqueda de transfers:");
+        logger.info("   Origen: {}, Destino: {} ({})", startLocationCode, endCityName, endCountryCode);
+        logger.info("   Fecha: {}, Pasajeros: {}, Tipo: {}", startDateTime, passengers, transferType);
         
         try {
-            // Construir parámetros según la documentación de Amadeus Transfers API
-            Params params = Params
-                .with("startLocationCode", airportCode.trim())
-                .and("endCityName", cityName.trim())
-                .and("endCountryCode", countryCode.trim())
-                .and("transferType", "PRIVATE")
-                .and("startDateTime", dateTime.trim())
-                .and("passengers", passengers);
+            // Obtener token válido
+            String token = getAccessToken();
             
-            logger.info("📡 Llamando a Amadeus Transfer Search API...");
+            // Construir URL con parámetros
+            StringBuilder urlBuilder = new StringBuilder(AMADEUS_TRANSFER_URL);
+            urlBuilder.append("?startLocationCode=").append(startLocationCode.trim());
+            urlBuilder.append("&endAddressLine=").append(endAddressLine.trim().replace(" ", "%20"));
+            urlBuilder.append("&endCityName=").append(endCityName.trim().replace(" ", "%20"));
+            urlBuilder.append("&endCountryCode=").append(endCountryCode.trim());
+            urlBuilder.append("&startDateTime=").append(startDateTime.trim());
+            urlBuilder.append("&passengers=").append(passengers);
+            urlBuilder.append("&transferType=").append(transferType.toUpperCase());
             
-            // Llamada a la API de Amadeus
-            TransferOffering[] transfers = amadeus.shopping.transferOffers.get(params);
+            if (endZipCode != null && !endZipCode.trim().isEmpty()) {
+                urlBuilder.append("&endZipCode=").append(endZipCode.trim());
+            }
             
-            logger.info("✅ Encontrados {} transfers disponibles", transfers.length);
-            return transfers;
+            String url = urlBuilder.toString();
             
-        } catch (ResponseException e) {
-            logger.error("❌ Error Amadeus Transfer API: Status={}, Message={}", 
-                e.getResponse() != null ? e.getResponse().getStatusCode() : "N/A",
-                e.getMessage());
-            throw e;
+            logger.info("📡 URL: {}", url);
+            
+            // Configurar headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", "Bearer " + token);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+            
+            // Hacer request
+            ResponseEntity<JsonNode> response = restTemplate.exchange(
+                url, HttpMethod.GET, entity, JsonNode.class
+            );
+            
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                JsonNode result = response.getBody();
+                int count = result.has("data") ? result.get("data").size() : 0;
+                logger.info("✅ Encontrados {} transfers", count);
+                return result;
+            }
+            
+            throw new RuntimeException("Respuesta inválida de Amadeus Transfer API");
+            
         } catch (Exception e) {
-            logger.error("❌ Error inesperado en búsqueda de transfers: {}", e.getMessage(), e);
-            throw new RuntimeException("Error en búsqueda de transfers", e);
+            logger.error("❌ Error en búsqueda de transfers: {}", e.getMessage(), e);
+            throw new RuntimeException("Error al buscar transfers: " + e.getMessage(), e);
         }
     }
     
     /**
-     * Buscar transfers por coordenadas geográficas
+     * Buscar transfers desde aeropuerto (simplificado)
+     * Usa "City Center" como destino por defecto
      */
-    public TransferOffering[] searchTransfersByGeocode(double startLatitude, 
-                                                       double startLongitude,
-                                                       double endLatitude,
-                                                       double endLongitude,
-                                                       String dateTime,
-                                                       int passengers) throws ResponseException {
+    public JsonNode searchAirportTransfers(
+            String airportCode,
+            String cityName,
+            String countryCode,
+            String dateTime,
+            int passengers) {
         
-        logger.info("🚗 Búsqueda de transfers por geocode:");
-        logger.info("   Origen: {},{} -> Destino: {},{}", 
-                   startLatitude, startLongitude, endLatitude, endLongitude);
+        logger.info("✈️🚗 Búsqueda de transfers desde aeropuerto: {} a {}", airportCode, cityName);
         
-        try {
-            Params params = Params
-                .with("startLatitude", startLatitude)
-                .and("startLongitude", startLongitude)
-                .and("endLatitude", endLatitude)
-                .and("endLongitude", endLongitude)
-                .and("startDateTime", dateTime.trim())
-                .and("passengers", passengers)
-                .and("transferType", "PRIVATE");
-            
-            logger.info("📡 Llamando a Amadeus Transfer Search API (geocode)...");
-            
-            TransferOffering[] transfers = amadeus.shopping.transferOffers.get(params);
-            
-            logger.info("✅ Encontrados {} transfers", transfers.length);
-            return transfers;
-            
-        } catch (ResponseException e) {
-            logger.error("❌ Error Amadeus API: {}", e.getMessage());
-            throw e;
-        }
+        // Dirección genérica del centro de la ciudad
+        String addressLine = "City Center";
+        
+        return searchTransfers(
+            airportCode,
+            addressLine,
+            cityName,
+            null, // Sin código postal
+            countryCode,
+            dateTime,
+            passengers,
+            "PRIVATE" // Por defecto privado
+        );
+    }
+    
+    /**
+     * Buscar transfers con más opciones
+     */
+    public JsonNode searchTransfersAdvanced(Map<String, String> params) {
+        return searchTransfers(
+            params.get("startLocationCode"),
+            params.getOrDefault("endAddressLine", "City Center"),
+            params.get("endCityName"),
+            params.get("endZipCode"),
+            params.get("endCountryCode"),
+            params.get("startDateTime"),
+            Integer.parseInt(params.getOrDefault("passengers", "1")),
+            params.getOrDefault("transferType", "PRIVATE")
+        );
     }
 }
