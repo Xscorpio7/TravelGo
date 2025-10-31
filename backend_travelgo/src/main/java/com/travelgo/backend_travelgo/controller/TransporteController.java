@@ -1,27 +1,29 @@
-package com.travelgo.backend_travelgo.service;
+package com.travelgo.backend_travelgo.controller;
 
 import com.amadeus.exceptions.ResponseException;
 import com.amadeus.resources.TransferOffering;
-import com.google.gson.Gson;
 import com.travelgo.backend_travelgo.model.Transporte;
 import com.travelgo.backend_travelgo.repository.TransporteRepository;
+import com.travelgo.backend_travelgo.service.AmadeusConnect;
+import com.travelgo.backend_travelgo.service.TransportService;
+import com.travelgo.backend_travelgo.util.JwtUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.google.gson.Gson;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 
-@Service
-public class TransportService {
+@RestController
+@RequestMapping("/api/transporte")
+@CrossOrigin(origins = "*")
+public class TransporteController {
     
-    private static final Logger logger = LoggerFactory.getLogger(TransportService.class);
+    private static final Logger logger = LoggerFactory.getLogger(TransporteController.class);
     
     @Autowired
     private TransporteRepository transporteRepository;
@@ -29,281 +31,455 @@ public class TransportService {
     @Autowired
     private AmadeusConnect amadeusConnect;
     
+    @Autowired
+    private TransportService transportService;
+    
+    @Autowired
+    private JwtUtil jwtUtil;
+    
     private final Gson gson = new Gson();
     
     /**
-     * Buscar transfers desde Amadeus y guardarlos
+     * Test del controlador
+     * GET /api/transporte/test
      */
-    @Transactional
-    public List<Transporte> buscarYGuardarTransfers(String airportCode, String cityName, 
-                                                    String countryCode, String dateTime, 
-                                                    int passengers) {
-        logger.info("🔍 Buscando transfers desde aeropuerto: {} a {}", airportCode, cityName);
+    @GetMapping("/test")
+    public ResponseEntity<Map<String, Object>> test() {
+        logger.info("🧪 Test endpoint de transporte llamado");
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "OK");
+        response.put("message", "Transport Controller funcionando");
+        response.put("timestamp", System.currentTimeMillis());
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Buscar transfers desde aeropuerto usando Amadeus
+     * GET /api/transporte/search-transfers
+     * 
+     * @param airportCode Código IATA del aeropuerto (ej: "MAD", "BCN", "ATH")
+     * @param cityName Nombre de la ciudad destino (ej: "Athens", "Madrid")
+     * @param countryCode Código del país (ej: "GR", "ES")
+     * @param dateTime Fecha y hora ISO 8601 (ej: "2025-12-15T10:00:00")
+     * @param passengers Número de pasajeros (default: 1)
+     */
+    @GetMapping(value = "/search-transfers", produces = "application/json")
+    public ResponseEntity<String> searchTransfers(
+            @RequestParam String airportCode,
+            @RequestParam String cityName,
+            @RequestParam String countryCode,
+            @RequestParam String dateTime,
+            @RequestParam(defaultValue = "1") int passengers) {
+        
+        logger.info("🚗 Búsqueda de transfers: {} -> {} ({}), Fecha: {}, Pasajeros: {}", 
+                   airportCode, cityName, countryCode, dateTime, passengers);
         
         try {
-            // Buscar en Amadeus
-            TransferOffering[] offerings = amadeusConnect.searchAirportTransfers(
-                airportCode, cityName, countryCode, dateTime, passengers
+            // Validaciones
+            if (airportCode == null || airportCode.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body("{\"error\":\"El código del aeropuerto es requerido (ej: MAD, BCN)\"}");
+            }
+            
+            if (cityName == null || cityName.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body("{\"error\":\"El nombre de la ciudad es requerido\"}");
+            }
+            
+            if (countryCode == null || countryCode.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body("{\"error\":\"El código del país es requerido (ej: ES, GR)\"}");
+            }
+            
+            if (dateTime == null || dateTime.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body("{\"error\":\"La fecha y hora son requeridas (formato: 2025-12-15T10:00:00)\"}");
+            }
+            
+            if (passengers < 1 || passengers > 8) {
+                return ResponseEntity.badRequest()
+                    .body("{\"error\":\"El número de pasajeros debe estar entre 1 y 8\"}");
+            }
+            
+            // Buscar en Amadeus y guardar
+            List<Transporte> transfers = transportService.buscarYGuardarTransfers(
+                airportCode.toUpperCase().trim(),
+                cityName.trim(),
+                countryCode.toUpperCase().trim(),
+                dateTime.trim(),
+                passengers
             );
             
-            List<Transporte> transportes = new ArrayList<>();
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "SUCCESS");
+            response.put("data", transfers);
+            response.put("count", transfers.size());
+            response.put("search", Map.of(
+                "airportCode", airportCode.toUpperCase().trim(),
+                "cityName", cityName.trim(),
+                "countryCode", countryCode.toUpperCase().trim(),
+                "dateTime", dateTime.trim(),
+                "passengers", passengers
+            ));
             
-            for (TransferOffering offering : offerings) {
-                Transporte transporte = convertirAmadeusATransporte(offering, airportCode, cityName);
-                
-                // Verificar si ya existe
-                Optional<Transporte> existente = transporteRepository.findByTransferId(
-                    transporte.getTransferId()
-                );
-                
-                if (existente.isEmpty()) {
-                    Transporte guardado = transporteRepository.save(transporte);
-                    transportes.add(guardado);
-                    logger.info("✅ Transfer guardado: {} - {}", guardado.getId(), guardado.getDescripcion());
-                } else {
-                    transportes.add(existente.get());
-                    logger.info("ℹ️ Transfer ya existe: {}", existente.get().getId());
-                }
-            }
+            String json = gson.toJson(response);
+            logger.info("✅ Búsqueda exitosa: {} transfers encontrados", transfers.size());
             
-            return transportes;
+            return ResponseEntity.ok(json);
             
         } catch (ResponseException e) {
-            logger.error("❌ Error Amadeus: {}", e.getMessage());
-            throw new RuntimeException("Error al buscar transfers en Amadeus: " + e.getMessage());
+            logger.error("❌ Error de Amadeus API", e);
+            String errorMsg = e.getMessage() != null ? e.getMessage().replace("\"", "'") : "Error desconocido";
+            return ResponseEntity.badRequest()
+                    .body("{\"error\":\"Error Amadeus: " + errorMsg + "\"}");
+                    
+        } catch (Exception e) {
+            logger.error("❌ Error en búsqueda de transfers", e);
+            String errorMsg = e.getMessage() != null ? e.getMessage().replace("\"", "'") : "Error interno";
+            return ResponseEntity.internalServerError()
+                    .body("{\"error\":\"" + errorMsg + "\"}");
         }
     }
     
     /**
-     * Convertir TransferOffering de Amadeus a Transporte
+     * Obtener todos los transportes disponibles
+     * GET /api/transporte/disponibles
      */
-    private Transporte convertirAmadeusATransporte(TransferOffering offering, 
-                                                   String origen, String destino) {
-        Transporte transporte = new Transporte();
-        
+    @GetMapping("/disponibles")
+    public ResponseEntity<?> getDisponibles() {
         try {
-            transporte.setTipo(Transporte.Tipo.Transfer);
-            transporte.setTransferId(offering.getId());
-            transporte.setOrigen(origen);
-            transporte.setDestino(destino);
+            logger.info("📋 Obteniendo transportes disponibles");
             
-            // Extraer información del offering
-            if (offering.getServiceProvider() != null) {
-                transporte.setProveedor(offering.getServiceProvider().getName());
-            }
+            List<Transporte> transportes = transportService.buscarDisponibles();
             
-            // Precio
-            if (offering.getQuotation() != null && offering.getQuotation().getMonetaryAmount() != null) {
-                transporte.setPrecio(new BigDecimal(offering.getQuotation().getMonetaryAmount()));
-                transporte.setCurrency(offering.getQuotation().getCurrencyCode());
-            }
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "SUCCESS");
+            response.put("data", transportes);
+            response.put("count", transportes.size());
             
-            // Vehículo
-            if (offering.getVehicle() != null) {
-                transporte.setVehiculoTipo(offering.getVehicle().getCode());
-                transporte.setCapacidad(offering.getVehicle().getSeats());
-                
-                // Descripción del vehículo
-                StringBuilder desc = new StringBuilder();
-                if (offering.getVehicle().getDescription() != null) {
-                    desc.append(offering.getVehicle().getDescription());
-                }
-                if (offering.getVehicle().getImageURL() != null) {
-                    desc.append(" | Imagen: ").append(offering.getVehicle().getImageURL());
-                }
-                transporte.setDescripcion(desc.toString());
-            }
-            
-            // Distancia
-            if (offering.getDistance() != null && offering.getDistance().getValue() != null) {
-                transporte.setDistancia(offering.getDistance().getValue());
-            }
-            
-            // Guardar JSON completo
-            transporte.setTransferDetails(gson.toJson(offering));
-            
-            transporte.setEstado(Transporte.Estado.disponible);
+            return ResponseEntity.ok(response);
             
         } catch (Exception e) {
-            logger.error("❌ Error al convertir transfer: {}", e.getMessage());
+            logger.error("❌ Error al obtener transportes disponibles: {}", e.getMessage());
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Error al obtener transportes: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(error);
         }
-        
-        return transporte;
     }
     
     /**
-     * Buscar todos los transportes disponibles
+     * Buscar transportes por tipo
+     * GET /api/transporte/por-tipo?tipo=Transfer
      */
-    public List<Transporte> buscarDisponibles() {
-        return transporteRepository.findByEstado(Transporte.Estado.disponible);
-    }
-    
-    /**
-     * Buscar por tipo y estado disponible
-     */
-    public List<Transporte> buscarDisponiblesPorTipo(Transporte.Tipo tipo) {
-        return transporteRepository.findByTipoAndEstado(tipo, Transporte.Estado.disponible);
-    }
-    
-    /**
-     * Buscar por origen
-     */
-    public List<Transporte> buscarPorOrigen(String origen) {
-        return transporteRepository.findByOrigenContainingIgnoreCase(origen);
-    }
-    
-    /**
-     * Buscar por destino
-     */
-    public List<Transporte> buscarPorDestino(String destino) {
-        return transporteRepository.findByDestinoContainingIgnoreCase(destino);
-    }
-    
-    /**
-     * Buscar por origen y destino
-     */
-    public List<Transporte> buscarPorOrigenDestino(String origen, String destino) {
-        return transporteRepository.findByOrigenAndDestino(origen, destino);
-    }
-    
-    /**
-     * Buscar por origen, destino y tipo
-     */
-    public List<Transporte> buscarPorOrigenDestinoTipo(String origen, String destino, 
-                                                       Transporte.Tipo tipo) {
-        return transporteRepository.findByOrigenDestinoAndTipo(origen, destino, tipo);
-    }
-    
-    /**
-     * Buscar transfers de aeropuerto en una ciudad
-     */
-    public List<Transporte> buscarTransferAeropuerto(String ciudad) {
-        return transporteRepository.findTransfersByCiudad(ciudad);
-    }
-    
-    /**
-     * Obtener por ID
-     */
-    public Optional<Transporte> obtenerPorId(Integer id) {
-        return transporteRepository.findById(id);
-    }
-    
-    /**
-     * Reservar transporte
-     */
-    @Transactional
-    public Transporte reservarTransporte(Integer id) {
-        Transporte transporte = transporteRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Transporte no encontrado"));
-        
-        if (transporte.getEstado() != Transporte.Estado.disponible) {
-            throw new RuntimeException("Transporte no disponible");
+    @GetMapping("/por-tipo")
+    public ResponseEntity<?> getPorTipo(@RequestParam String tipo) {
+        try {
+            logger.info("📋 Buscando transportes por tipo: {}", tipo);
+            
+            Transporte.Tipo tipoEnum = Transporte.Tipo.valueOf(tipo);
+            List<Transporte> transportes = transportService.buscarDisponiblesPorTipo(tipoEnum);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "SUCCESS");
+            response.put("data", transportes);
+            response.put("count", transportes.size());
+            response.put("tipo", tipo);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalArgumentException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Tipo de transporte inválido. Valores válidos: Avion, Bus, Tren, Barco, Auto_Rental, Taxi, Transfer");
+            return ResponseEntity.badRequest().body(error);
+        } catch (Exception e) {
+            logger.error("❌ Error: {}", e.getMessage());
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Error: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(error);
         }
-        
-        transporte.setEstado(Transporte.Estado.reservado);
-        return transporteRepository.save(transporte);
     }
     
     /**
-     * Cancelar reserva
+     * Buscar transportes por origen y destino
+     * GET /api/transporte/buscar?origen=MAD&destino=Athens
      */
-    @Transactional
-    public Transporte cancelarReserva(Integer id) {
-        Transporte transporte = transporteRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Transporte no encontrado"));
+    @GetMapping("/buscar")
+    public ResponseEntity<?> buscarPorOrigenDestino(
+            @RequestParam(required = false) String origen,
+            @RequestParam(required = false) String destino,
+            @RequestParam(required = false) String tipo) {
         
-        if (transporte.getEstado() != Transporte.Estado.reservado) {
-            throw new RuntimeException("El transporte no está reservado");
+        try {
+            logger.info("🔍 Búsqueda: origen={}, destino={}, tipo={}", origen, destino, tipo);
+            
+            List<Transporte> transportes;
+            
+            if (origen != null && destino != null && tipo != null) {
+                Transporte.Tipo tipoEnum = Transporte.Tipo.valueOf(tipo);
+                transportes = transportService.buscarPorOrigenDestinoTipo(origen, destino, tipoEnum);
+            } else if (origen != null && destino != null) {
+                transportes = transportService.buscarPorOrigenDestino(origen, destino);
+            } else if (origen != null) {
+                transportes = transportService.buscarPorOrigen(origen);
+            } else if (destino != null) {
+                transportes = transportService.buscarPorDestino(destino);
+            } else {
+                transportes = transportService.buscarDisponibles();
+            }
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "SUCCESS");
+            response.put("data", transportes);
+            response.put("count", transportes.size());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("❌ Error en búsqueda: {}", e.getMessage());
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Error: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(error);
         }
-        
-        transporte.setEstado(Transporte.Estado.disponible);
-        return transporteRepository.save(transporte);
+    }
+    
+    /**
+     * Obtener transporte por ID
+     * GET /api/transporte/{id}
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getById(@PathVariable Integer id) {
+        try {
+            logger.info("📄 Obteniendo transporte: {}", id);
+            
+            return transportService.obtenerPorId(id)
+                    .map(transporte -> {
+                        Map<String, Object> response = new HashMap<>();
+                        response.put("status", "SUCCESS");
+                        response.put("data", transporte);
+                        return ResponseEntity.ok(response);
+                    })
+                    .orElseGet(() -> {
+                        Map<String, String> error = new HashMap<>();
+                        error.put("error", "Transporte no encontrado");
+                        return ResponseEntity.status(404).body(error);
+                    });
+                    
+        } catch (Exception e) {
+            logger.error("❌ Error: {}", e.getMessage());
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Error: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(error);
+        }
     }
     
     /**
      * Crear transporte manualmente
+     * POST /api/transporte
      */
-    @Transactional
-    public Transporte crearTransporte(Transporte transporte) {
-        if (transporte.getEstado() == null) {
-            transporte.setEstado(Transporte.Estado.disponible);
+    @PostMapping
+    public ResponseEntity<?> crear(@RequestBody Transporte transporte) {
+        try {
+            logger.info("➕ Creando transporte: {} -> {}", transporte.getOrigen(), transporte.getDestino());
+            
+            Transporte creado = transportService.crearTransporte(transporte);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "SUCCESS");
+            response.put("message", "Transporte creado correctamente");
+            response.put("data", creado);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("❌ Error al crear transporte: {}", e.getMessage());
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Error: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(error);
         }
-        return transporteRepository.save(transporte);
+    }
+    
+    /**
+     * Reservar un transporte
+     * PUT /api/transporte/{id}/reservar
+     */
+    @PutMapping("/{id}/reservar")
+    public ResponseEntity<?> reservar(
+            @PathVariable Integer id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        
+        try {
+            // Verificar autenticación
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Token no proporcionado");
+                return ResponseEntity.status(401).body(error);
+            }
+            
+            String token = authHeader.substring(7);
+            Integer usuarioId = jwtUtil.extractUsuarioId(token);
+            
+            if (jwtUtil.isTokenExpired(token)) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Token expirado");
+                return ResponseEntity.status(401).body(error);
+            }
+            
+            logger.info("🎫 Usuario {} reservando transporte {}", usuarioId, id);
+            
+            Transporte reservado = transportService.reservarTransporte(id);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "SUCCESS");
+            response.put("message", "Transporte reservado correctamente");
+            response.put("data", reservado);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (RuntimeException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        } catch (Exception e) {
+            logger.error("❌ Error: {}", e.getMessage());
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Error: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(error);
+        }
+    }
+    
+    /**
+     * Cancelar reserva de transporte
+     * PUT /api/transporte/{id}/cancelar
+     */
+    @PutMapping("/{id}/cancelar")
+    public ResponseEntity<?> cancelar(
+            @PathVariable Integer id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        
+        try {
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Token no proporcionado");
+                return ResponseEntity.status(401).body(error);
+            }
+            
+            String token = authHeader.substring(7);
+            Integer usuarioId = jwtUtil.extractUsuarioId(token);
+            
+            logger.info("❌ Usuario {} cancelando transporte {}", usuarioId, id);
+            
+            Transporte cancelado = transportService.cancelarReserva(id);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "SUCCESS");
+            response.put("message", "Reserva cancelada correctamente");
+            response.put("data", cancelado);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (RuntimeException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        } catch (Exception e) {
+            logger.error("❌ Error: {}", e.getMessage());
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Error: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(error);
+        }
     }
     
     /**
      * Actualizar transporte
+     * PUT /api/transporte/{id}
      */
-    @Transactional
-    public Transporte actualizarTransporte(Integer id, Transporte transporteDetails) {
-        Transporte transporte = transporteRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Transporte no encontrado"));
-        
-        if (transporteDetails.getTipo() != null) {
-            transporte.setTipo(transporteDetails.getTipo());
+    @PutMapping("/{id}")
+    public ResponseEntity<?> actualizar(@PathVariable Integer id, @RequestBody Transporte transporteDetails) {
+        try {
+            logger.info("✏️ Actualizando transporte: {}", id);
+            
+            Transporte actualizado = transportService.actualizarTransporte(id, transporteDetails);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "SUCCESS");
+            response.put("message", "Transporte actualizado correctamente");
+            response.put("data", actualizado);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (RuntimeException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(404).body(error);
+        } catch (Exception e) {
+            logger.error("❌ Error: {}", e.getMessage());
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Error: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(error);
         }
-        if (transporteDetails.getProveedor() != null) {
-            transporte.setProveedor(transporteDetails.getProveedor());
-        }
-        if (transporteDetails.getOrigen() != null) {
-            transporte.setOrigen(transporteDetails.getOrigen());
-        }
-        if (transporteDetails.getDestino() != null) {
-            transporte.setDestino(transporteDetails.getDestino());
-        }
-        if (transporteDetails.getPrecio() != null) {
-            transporte.setPrecio(transporteDetails.getPrecio());
-        }
-        if (transporteDetails.getEstado() != null) {
-            transporte.setEstado(transporteDetails.getEstado());
-        }
-        
-        return transporteRepository.save(transporte);
     }
     
     /**
      * Eliminar transporte
+     * DELETE /api/transporte/{id}
      */
-    @Transactional
-    public void eliminarTransporte(Integer id) {
-        if (!transporteRepository.existsById(id)) {
-            throw new RuntimeException("Transporte no encontrado");
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> eliminar(@PathVariable Integer id) {
+        try {
+            logger.info("🗑️ Eliminando transporte: {}", id);
+            
+            transportService.eliminarTransporte(id);
+            
+            Map<String, String> response = new HashMap<>();
+            response.put("status", "SUCCESS");
+            response.put("message", "Transporte eliminado correctamente");
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (RuntimeException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(404).body(error);
+        } catch (Exception e) {
+            logger.error("❌ Error: {}", e.getMessage());
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Error: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(error);
         }
-        transporteRepository.deleteById(id);
     }
     
     /**
-     * Calcular precio estimado basado en distancia y tipo
+     * Ejemplo de búsqueda de transfers
+     * GET /api/transporte/example
      */
-    public BigDecimal calcularPrecioEstimado(String origen, String destino, Transporte.Tipo tipo) {
-        // Buscar transportes similares
-        List<Transporte> similares = buscarPorOrigenDestinoTipo(origen, destino, tipo);
+    @GetMapping("/example")
+    public ResponseEntity<Map<String, Object>> example() {
+        logger.info("🧪 Ejemplo de búsqueda de transfers MAD -> Athens");
         
-        if (!similares.isEmpty()) {
-            // Calcular promedio
-            BigDecimal total = BigDecimal.ZERO;
-            for (Transporte t : similares) {
-                if (t.getPrecio() != null) {
-                    total = total.add(t.getPrecio());
-                }
-            }
-            return total.divide(new BigDecimal(similares.size()), 2, BigDecimal.ROUND_HALF_UP);
-        }
+        Map<String, Object> response = new HashMap<>();
         
-        // Precios base por tipo
-        switch (tipo) {
-            case Transfer:
-                return new BigDecimal("50.00");
-            case Taxi:
-                return new BigDecimal("30.00");
-            case Bus:
-                return new BigDecimal("15.00");
-            case Tren:
-                return new BigDecimal("25.00");
-            case Auto_Rental:
-                return new BigDecimal("45.00");
-            default:
-                return new BigDecimal("20.00");
+        try {
+            List<Transporte> transfers = transportService.buscarYGuardarTransfers(
+                "ATH",
+                "Athens",
+                "GR",
+                "2025-12-15T10:00:00",
+                2
+            );
+            
+            response.put("status", "SUCCESS");
+            response.put("message", "Ejemplo de búsqueda completado");
+            response.put("data", transfers);
+            response.put("count", transfers.size());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("❌ Error en ejemplo: {}", e.getMessage(), e);
+            response.put("error", "Error: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(response);
         }
     }
 }

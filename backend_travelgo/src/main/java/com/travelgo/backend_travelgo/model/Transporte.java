@@ -5,8 +5,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * Modelo Transporte - Compatible con tabla existente en BD
- * Soporta transfers de Amadeus y transporte local
+ * Modelo Transporte - Compatible con tabla existente en BD y Amadeus Transfers
  */
 @Entity
 @Table(name = "transporte")
@@ -38,7 +37,7 @@ public class Transporte {
     @Column(name = "destino", length = 100)
     private String destino;
 
-    // ⭐ CAMPOS AMADEUS (ya existen en tu BD)
+    // Campos Amadeus existentes
     @Column(name = "amadeus_id", length = 50)
     private String amadeusId;
 
@@ -67,6 +66,25 @@ public class Transporte {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    // ⭐ NUEVOS CAMPOS PARA TRANSFERS DE AMADEUS
+    @Column(name = "transfer_id", length = 50)
+    private String transferId;
+    
+    @Column(name = "vehiculo_tipo", length = 50)
+    private String vehiculoTipo;
+    
+    @Column(name = "descripcion", columnDefinition = "TEXT")
+    private String descripcion;
+    
+    @Column(name = "distancia", precision = 10, scale = 2)
+    private BigDecimal distancia;
+    
+    @Column(name = "duracion_minutos")
+    private Integer duracionMinutos;
+    
+    @Column(name = "transfer_details", columnDefinition = "LONGTEXT")
+    private String transferDetails;
+
     // Relación opcional con viaje
     @ManyToOne
     @JoinColumn(name = "viaje_id", nullable = true)
@@ -94,7 +112,8 @@ public class Transporte {
         this.estado = Estado.disponible;
     }
 
-    // Getters y Setters
+    // ===== GETTERS Y SETTERS =====
+    
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
 
@@ -145,6 +164,25 @@ public class Transporte {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    
+    // Getters/Setters para campos de Transfers
+    public String getTransferId() { return transferId; }
+    public void setTransferId(String transferId) { this.transferId = transferId; }
+    
+    public String getVehiculoTipo() { return vehiculoTipo; }
+    public void setVehiculoTipo(String vehiculoTipo) { this.vehiculoTipo = vehiculoTipo; }
+    
+    public String getDescripcion() { return descripcion; }
+    public void setDescripcion(String descripcion) { this.descripcion = descripcion; }
+    
+    public BigDecimal getDistancia() { return distancia; }
+    public void setDistancia(BigDecimal distancia) { this.distancia = distancia; }
+    
+    public Integer getDuracionMinutos() { return duracionMinutos; }
+    public void setDuracionMinutos(Integer duracionMinutos) { this.duracionMinutos = duracionMinutos; }
+    
+    public String getTransferDetails() { return transferDetails; }
+    public void setTransferDetails(String transferDetails) { this.transferDetails = transferDetails; }
 
     public Viaje getViaje() { return viaje; }
     public void setViaje(Viaje viaje) { this.viaje = viaje; }
