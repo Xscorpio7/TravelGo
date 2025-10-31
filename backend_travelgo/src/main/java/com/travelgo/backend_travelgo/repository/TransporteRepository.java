@@ -19,7 +19,7 @@ public interface TransporteRepository extends JpaRepository<Transporte, Integer>
     // Buscar por estado
     List<Transporte> findByEstado(Transporte.Estado estado);
     
-    // Buscar por tipo y estado
+    // ✅ ÚNICO MÉTODO: Buscar por tipo y estado
     List<Transporte> findByTipoAndEstado(Transporte.Tipo tipo, Transporte.Estado estado);
     
     // Buscar por origen
@@ -43,9 +43,6 @@ public interface TransporteRepository extends JpaRepository<Transporte, Integer>
     List<Transporte> findByOrigenDestinoAndTipo(@Param("origen") String origen, 
                                                 @Param("destino") String destino,
                                                 @Param("tipo") Transporte.Tipo tipo);
-    
-    // Buscar disponibles por tipo
-    List<Transporte> findByTipoAndEstado(Transporte.Tipo tipo, Transporte.Estado disponible);
     
     // Buscar por transfer ID de Amadeus
     Optional<Transporte> findByTransferId(String transferId);

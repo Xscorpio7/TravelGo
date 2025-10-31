@@ -243,4 +243,92 @@ public class AmadeusConnect {
         }
     }
     
+    // ========================================
+    // ⭐ TRANSFERS (NUEVO)
+    // ========================================
+    
+    /**
+     * Buscar transfers desde aeropuerto
+     * @param airportCode Código IATA del aeropuerto (ej: "ATH", "MAD")
+     * @param cityName Nombre de la ciudad (ej: "Athens", "Madrid")
+     * @param countryCode Código ISO del país (ej: "GR", "ES")
+     * @param dateTime Fecha y hora en formato ISO 8601 (ej: "2025-12-15T10:00:00")
+     * @param passengers Número de pasajeros
+     * @return Array de TransferOffering
+     */
+    public TransferOffering[] searchAirportTransfers(String airportCode, 
+                                                     String cityName,
+                                                     String countryCode, 
+                                                     String dateTime, 
+                                                     int passengers) throws ResponseException {
+        
+        logger.info("🚗 Búsqueda de transfers desde aeropuerto:");
+        logger.info("   Aeropuerto: {} -> Ciudad: {}, País: {}", airportCode, cityName, countryCode);
+        logger.info("   Fecha/Hora: {}, Pasajeros: {}", dateTime, passengers);
+        
+        try {
+            // Construir parámetros según la documentación de Amadeus Transfers API
+            Params params = Params
+                .with("startLocationCode", airportCode.trim())
+                .and("endCityName", cityName.trim())
+                .and("endCountryCode", countryCode.trim())
+                .and("transferType", "PRIVATE")
+                .and("startDateTime", dateTime.trim())
+                .and("passengers", passengers);
+            
+            logger.info("📡 Llamando a Amadeus Transfer Search API...");
+            
+            // Llamada a la API de Amadeus
+            TransferOffering[] transfers = amadeus.shopping.transferOffers.get(params);
+            
+            logger.info("✅ Encontrados {} transfers disponibles", transfers.length);
+            return transfers;
+            
+        } catch (ResponseException e) {
+            logger.error("❌ Error Amadeus Transfer API: Status={}, Message={}", 
+                e.getResponse() != null ? e.getResponse().getStatusCode() : "N/A",
+                e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            logger.error("❌ Error inesperado en búsqueda de transfers: {}", e.getMessage(), e);
+            throw new RuntimeException("Error en búsqueda de transfers", e);
+        }
+    }
+    
+    /**
+     * Buscar transfers por coordenadas geográficas
+     */
+    public TransferOffering[] searchTransfersByGeocode(double startLatitude, 
+                                                       double startLongitude,
+                                                       double endLatitude,
+                                                       double endLongitude,
+                                                       String dateTime,
+                                                       int passengers) throws ResponseException {
+        
+        logger.info("🚗 Búsqueda de transfers por geocode:");
+        logger.info("   Origen: {},{} -> Destino: {},{}", 
+                   startLatitude, startLongitude, endLatitude, endLongitude);
+        
+        try {
+            Params params = Params
+                .with("startLatitude", startLatitude)
+                .and("startLongitude", startLongitude)
+                .and("endLatitude", endLatitude)
+                .and("endLongitude", endLongitude)
+                .and("startDateTime", dateTime.trim())
+                .and("passengers", passengers)
+                .and("transferType", "PRIVATE");
+            
+            logger.info("📡 Llamando a Amadeus Transfer Search API (geocode)...");
+            
+            TransferOffering[] transfers = amadeus.shopping.transferOffers.get(params);
+            
+            logger.info("✅ Encontrados {} transfers", transfers.length);
+            return transfers;
+            
+        } catch (ResponseException e) {
+            logger.error("❌ Error Amadeus API: {}", e.getMessage());
+            throw e;
+        }
+    }
 }

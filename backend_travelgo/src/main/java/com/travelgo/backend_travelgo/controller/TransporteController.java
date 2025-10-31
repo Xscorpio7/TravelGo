@@ -1,7 +1,6 @@
 package com.travelgo.backend_travelgo.controller;
 
 import com.amadeus.exceptions.ResponseException;
-import com.amadeus.resources.TransferOffering;
 import com.travelgo.backend_travelgo.model.Transporte;
 import com.travelgo.backend_travelgo.repository.TransporteRepository;
 import com.travelgo.backend_travelgo.service.AmadeusConnect;
@@ -148,7 +147,7 @@ public class TransporteController {
      * GET /api/transporte/disponibles
      */
     @GetMapping("/disponibles")
-    public ResponseEntity<?> getDisponibles() {
+    public ResponseEntity<Map<String, Object>> getDisponibles() {
         try {
             logger.info("📋 Obteniendo transportes disponibles");
             
@@ -163,7 +162,7 @@ public class TransporteController {
             
         } catch (Exception e) {
             logger.error("❌ Error al obtener transportes disponibles: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
+            Map<String, Object> error = new HashMap<>();
             error.put("error", "Error al obtener transportes: " + e.getMessage());
             return ResponseEntity.internalServerError().body(error);
         }
@@ -174,7 +173,7 @@ public class TransporteController {
      * GET /api/transporte/por-tipo?tipo=Transfer
      */
     @GetMapping("/por-tipo")
-    public ResponseEntity<?> getPorTipo(@RequestParam String tipo) {
+    public ResponseEntity<Map<String, Object>> getPorTipo(@RequestParam String tipo) {
         try {
             logger.info("📋 Buscando transportes por tipo: {}", tipo);
             
@@ -190,12 +189,12 @@ public class TransporteController {
             return ResponseEntity.ok(response);
             
         } catch (IllegalArgumentException e) {
-            Map<String, String> error = new HashMap<>();
+            Map<String, Object> error = new HashMap<>();
             error.put("error", "Tipo de transporte inválido. Valores válidos: Avion, Bus, Tren, Barco, Auto_Rental, Taxi, Transfer");
             return ResponseEntity.badRequest().body(error);
         } catch (Exception e) {
             logger.error("❌ Error: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
+            Map<String, Object> error = new HashMap<>();
             error.put("error", "Error: " + e.getMessage());
             return ResponseEntity.internalServerError().body(error);
         }
@@ -206,7 +205,7 @@ public class TransporteController {
      * GET /api/transporte/buscar?origen=MAD&destino=Athens
      */
     @GetMapping("/buscar")
-    public ResponseEntity<?> buscarPorOrigenDestino(
+    public ResponseEntity<Map<String, Object>> buscarPorOrigenDestino(
             @RequestParam(required = false) String origen,
             @RequestParam(required = false) String destino,
             @RequestParam(required = false) String tipo) {
@@ -238,7 +237,7 @@ public class TransporteController {
             
         } catch (Exception e) {
             logger.error("❌ Error en búsqueda: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
+            Map<String, Object> error = new HashMap<>();
             error.put("error", "Error: " + e.getMessage());
             return ResponseEntity.internalServerError().body(error);
         }
@@ -249,7 +248,7 @@ public class TransporteController {
      * GET /api/transporte/{id}
      */
     @GetMapping("/{id}")
-    public ResponseEntity<?> getById(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> getById(@PathVariable Integer id) {
         try {
             logger.info("📄 Obteniendo transporte: {}", id);
             
@@ -261,14 +260,14 @@ public class TransporteController {
                         return ResponseEntity.ok(response);
                     })
                     .orElseGet(() -> {
-                        Map<String, String> error = new HashMap<>();
+                        Map<String, Object> error = new HashMap<>();
                         error.put("error", "Transporte no encontrado");
                         return ResponseEntity.status(404).body(error);
                     });
                     
         } catch (Exception e) {
             logger.error("❌ Error: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
+            Map<String, Object> error = new HashMap<>();
             error.put("error", "Error: " + e.getMessage());
             return ResponseEntity.internalServerError().body(error);
         }
@@ -279,7 +278,7 @@ public class TransporteController {
      * POST /api/transporte
      */
     @PostMapping
-    public ResponseEntity<?> crear(@RequestBody Transporte transporte) {
+    public ResponseEntity<Map<String, Object>> crear(@RequestBody Transporte transporte) {
         try {
             logger.info("➕ Creando transporte: {} -> {}", transporte.getOrigen(), transporte.getDestino());
             
@@ -294,7 +293,7 @@ public class TransporteController {
             
         } catch (Exception e) {
             logger.error("❌ Error al crear transporte: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
+            Map<String, Object> error = new HashMap<>();
             error.put("error", "Error: " + e.getMessage());
             return ResponseEntity.internalServerError().body(error);
         }
@@ -305,14 +304,14 @@ public class TransporteController {
      * PUT /api/transporte/{id}/reservar
      */
     @PutMapping("/{id}/reservar")
-    public ResponseEntity<?> reservar(
+    public ResponseEntity<Map<String, Object>> reservar(
             @PathVariable Integer id,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         
         try {
             // Verificar autenticación
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                Map<String, String> error = new HashMap<>();
+                Map<String, Object> error = new HashMap<>();
                 error.put("error", "Token no proporcionado");
                 return ResponseEntity.status(401).body(error);
             }
@@ -321,7 +320,7 @@ public class TransporteController {
             Integer usuarioId = jwtUtil.extractUsuarioId(token);
             
             if (jwtUtil.isTokenExpired(token)) {
-                Map<String, String> error = new HashMap<>();
+                Map<String, Object> error = new HashMap<>();
                 error.put("error", "Token expirado");
                 return ResponseEntity.status(401).body(error);
             }
@@ -338,12 +337,12 @@ public class TransporteController {
             return ResponseEntity.ok(response);
             
         } catch (RuntimeException e) {
-            Map<String, String> error = new HashMap<>();
+            Map<String, Object> error = new HashMap<>();
             error.put("error", e.getMessage());
             return ResponseEntity.badRequest().body(error);
         } catch (Exception e) {
             logger.error("❌ Error: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
+            Map<String, Object> error = new HashMap<>();
             error.put("error", "Error: " + e.getMessage());
             return ResponseEntity.internalServerError().body(error);
         }
@@ -354,13 +353,13 @@ public class TransporteController {
      * PUT /api/transporte/{id}/cancelar
      */
     @PutMapping("/{id}/cancelar")
-    public ResponseEntity<?> cancelar(
+    public ResponseEntity<Map<String, Object>> cancelar(
             @PathVariable Integer id,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         
         try {
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                Map<String, String> error = new HashMap<>();
+                Map<String, Object> error = new HashMap<>();
                 error.put("error", "Token no proporcionado");
                 return ResponseEntity.status(401).body(error);
             }
@@ -380,12 +379,12 @@ public class TransporteController {
             return ResponseEntity.ok(response);
             
         } catch (RuntimeException e) {
-            Map<String, String> error = new HashMap<>();
+            Map<String, Object> error = new HashMap<>();
             error.put("error", e.getMessage());
             return ResponseEntity.badRequest().body(error);
         } catch (Exception e) {
             logger.error("❌ Error: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
+            Map<String, Object> error = new HashMap<>();
             error.put("error", "Error: " + e.getMessage());
             return ResponseEntity.internalServerError().body(error);
         }
@@ -396,7 +395,7 @@ public class TransporteController {
      * PUT /api/transporte/{id}
      */
     @PutMapping("/{id}")
-    public ResponseEntity<?> actualizar(@PathVariable Integer id, @RequestBody Transporte transporteDetails) {
+    public ResponseEntity<Map<String, Object>> actualizar(@PathVariable Integer id, @RequestBody Transporte transporteDetails) {
         try {
             logger.info("✏️ Actualizando transporte: {}", id);
             
@@ -410,12 +409,12 @@ public class TransporteController {
             return ResponseEntity.ok(response);
             
         } catch (RuntimeException e) {
-            Map<String, String> error = new HashMap<>();
+            Map<String, Object> error = new HashMap<>();
             error.put("error", e.getMessage());
             return ResponseEntity.status(404).body(error);
         } catch (Exception e) {
             logger.error("❌ Error: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
+            Map<String, Object> error = new HashMap<>();
             error.put("error", "Error: " + e.getMessage());
             return ResponseEntity.internalServerError().body(error);
         }
@@ -426,25 +425,25 @@ public class TransporteController {
      * DELETE /api/transporte/{id}
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> eliminar(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> eliminar(@PathVariable Integer id) {
         try {
             logger.info("🗑️ Eliminando transporte: {}", id);
             
             transportService.eliminarTransporte(id);
             
-            Map<String, String> response = new HashMap<>();
+            Map<String, Object> response = new HashMap<>();
             response.put("status", "SUCCESS");
             response.put("message", "Transporte eliminado correctamente");
             
             return ResponseEntity.ok(response);
             
         } catch (RuntimeException e) {
-            Map<String, String> error = new HashMap<>();
+            Map<String, Object> error = new HashMap<>();
             error.put("error", e.getMessage());
             return ResponseEntity.status(404).body(error);
         } catch (Exception e) {
             logger.error("❌ Error: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
+            Map<String, Object> error = new HashMap<>();
             error.put("error", "Error: " + e.getMessage());
             return ResponseEntity.internalServerError().body(error);
         }
@@ -456,7 +455,7 @@ public class TransporteController {
      */
     @GetMapping("/example")
     public ResponseEntity<Map<String, Object>> example() {
-        logger.info("🧪 Ejemplo de búsqueda de transfers MAD -> Athens");
+        logger.info("🧪 Ejemplo de búsqueda de transfers ATH -> Athens");
         
         Map<String, Object> response = new HashMap<>();
         
