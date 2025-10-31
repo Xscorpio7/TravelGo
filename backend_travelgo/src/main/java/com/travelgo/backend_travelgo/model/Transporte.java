@@ -1,26 +1,30 @@
 package com.travelgo.backend_travelgo.model;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.LocalDate;
+
+/**
+ * Modelo Transporte - Compatible con tabla existente en BD
+ * Soporta transfers de Amadeus y transporte local
+ */
 @Entity
 @Table(name = "transporte")
 public class Transporte {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Integer id;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "tipo", columnDefinition = "ENUM('Avion', 'Bus', 'Tren', 'Barco')")
+    @Column(name = "tipo", columnDefinition = "ENUM('Avion', 'Bus', 'Tren', 'Barco', 'Auto_Rental', 'Taxi', 'Transfer')")
     private Tipo tipo;
 
     @Column(name = "proveedor", length = 100)
     private String proveedor;
     
     @Column(name = "numero_transporte", length = 50)
-    private String numero_transporte;
-
+    private String numeroTransporte;
 
     @Column(name = "salida")
     private LocalDateTime salida;
@@ -34,100 +38,141 @@ public class Transporte {
     @Column(name = "destino", length = 100)
     private String destino;
 
+    // ⭐ CAMPOS AMADEUS (ya existen en tu BD)
+    @Column(name = "amadeus_id", length = 50)
+    private String amadeusId;
+
+    @Column(name = "booking_reference", length = 50)
+    private String bookingReference;
+
+    @Column(name = "precio", precision = 10, scale = 2)
+    private BigDecimal precio;
+
+    @Column(name = "currency", length = 3)
+    private String currency = "USD";
+
+    @Column(name = "capacidad")
+    private Integer capacidad;
+
+    @Column(name = "categoria", length = 50)
+    private String categoria;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "estado", columnDefinition = "ENUM('disponible', 'reservado', 'cancelado')")
+    private Estado estado = Estado.disponible;
+
+    @Column(name = "detalles_json", columnDefinition = "LONGTEXT")
+    private String detallesJson;
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    // Relación opcional con viaje
     @ManyToOne
-    @JoinColumn(name = "viaje_id", nullable = false)
-    private Viaje viaje;  
-    // Constructor vacío
+    @JoinColumn(name = "viaje_id", nullable = true)
+    private Viaje viaje;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        if (estado == null) {
+            estado = Estado.disponible;
+        }
+        if (currency == null) {
+            currency = "USD";
+        }
+    }
+
+    // Constructores
     public Transporte() {}
 
-    // Constructor completo
-    public Transporte(Tipo tipo, String proveedor, LocalDateTime salida, LocalDateTime llegada, String origen, String destino) {
+    public Transporte(Tipo tipo, String origen, String destino, BigDecimal precio) {
         this.tipo = tipo;
-        this.proveedor = proveedor;
-        this.numero_transporte = numero_transporte;
-        this.salida = salida;
-        this.llegada = llegada;
         this.origen = origen;
         this.destino = destino;
+        this.precio = precio;
+        this.estado = Estado.disponible;
     }
 
-    // Getters
-    public int getId() {
-        return id;
-    }
+    // Getters y Setters
+    public Integer getId() { return id; }
+    public void setId(Integer id) { this.id = id; }
 
-    public Tipo getTipo() {
-        return tipo;
-    }
+    public Tipo getTipo() { return tipo; }
+    public void setTipo(Tipo tipo) { this.tipo = tipo; }
 
-    public String getProveedor() {
-        return proveedor;
-    }
+    public String getProveedor() { return proveedor; }
+    public void setProveedor(String proveedor) { this.proveedor = proveedor; }
     
-    public String getNumero_transporte() {
-        return numero_transporte;
-    }
+    public String getNumeroTransporte() { return numeroTransporte; }
+    public void setNumeroTransporte(String numeroTransporte) { this.numeroTransporte = numeroTransporte; }
 
+    public LocalDateTime getSalida() { return salida; }
+    public void setSalida(LocalDateTime salida) { this.salida = salida; }
 
-    public LocalDateTime getSalida() {
-        return salida;
-    }
+    public LocalDateTime getLlegada() { return llegada; }
+    public void setLlegada(LocalDateTime llegada) { this.llegada = llegada; }
 
-    public LocalDateTime getLlegada() {
-        return llegada;
-    }
+    public String getOrigen() { return origen; }
+    public void setOrigen(String origen) { this.origen = origen; }
 
-    public String getOrigen() {
-        return origen;
-    }
+    public String getDestino() { return destino; }
+    public void setDestino(String destino) { this.destino = destino; }
 
-    public String getDestino() {
-        return destino;
-    }
+    public String getAmadeusId() { return amadeusId; }
+    public void setAmadeusId(String amadeusId) { this.amadeusId = amadeusId; }
 
-    public Viaje getViaje() {
-        return viaje;
-    }
+    public String getBookingReference() { return bookingReference; }
+    public void setBookingReference(String bookingReference) { this.bookingReference = bookingReference; }
 
-    // Setters
-    public void setId(int id) {
-        this.id = id;
-    }
+    public BigDecimal getPrecio() { return precio; }
+    public void setPrecio(BigDecimal precio) { this.precio = precio; }
 
-    public void setTipo(Tipo tipo) {
-        this.tipo = tipo;
-    }
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
 
-    public void setProveedor(String proveedor) {
-        this.proveedor = proveedor;
-    }
-    
-    public void setNumero_transporte(String numero_transporte) {
-        this.numero_transporte = numero_transporte;
-    }
+    public Integer getCapacidad() { return capacidad; }
+    public void setCapacidad(Integer capacidad) { this.capacidad = capacidad; }
 
-    public void setSalida(LocalDateTime salida) {
-        this.salida = salida;
-    }
+    public String getCategoria() { return categoria; }
+    public void setCategoria(String categoria) { this.categoria = categoria; }
 
-    public void setLlegada(LocalDateTime llegada) {
-        this.llegada = llegada;
-    }
+    public Estado getEstado() { return estado; }
+    public void setEstado(Estado estado) { this.estado = estado; }
 
-    public void setOrigen(String origen) {
-        this.origen = origen;
-    }
+    public String getDetallesJson() { return detallesJson; }
+    public void setDetallesJson(String detallesJson) { this.detallesJson = detallesJson; }
 
-    public void setDestino(String destino) {
-        this.destino = destino;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    public void setViaje(Viaje viaje) {
-        this.viaje = viaje;
-    }
+    public Viaje getViaje() { return viaje; }
+    public void setViaje(Viaje viaje) { this.viaje = viaje; }
 
-    // Enum tipo de transporte
+    // Métodos deprecados para compatibilidad
+    @Deprecated
+    public String getNumero_transporte() { return numeroTransporte; }
+    @Deprecated
+    public void setNumero_transporte(String numeroTransporte) { this.numeroTransporte = numeroTransporte; }
+
+    // Enums
     public enum Tipo {
-        Avion, Bus, Tren, Barco
+        Avion, Bus, Tren, Barco, Auto_Rental, Taxi, Transfer
+    }
+
+    public enum Estado {
+        disponible, reservado, cancelado
+    }
+
+    @Override
+    public String toString() {
+        return "Transporte{" +
+                "id=" + id +
+                ", tipo=" + tipo +
+                ", origen='" + origen + '\'' +
+                ", destino='" + destino + '\'' +
+                ", precio=" + precio +
+                ", estado=" + estado +
+                '}';
     }
 }
