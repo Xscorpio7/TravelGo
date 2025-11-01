@@ -5,8 +5,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * Modelo Transporte - Compatible con tabla existente en BD
- * Gestión manual de transportes (sin integración Amadeus Transfer API)
+ * Modelo Transporte - Compatible con tabla existente en BD y Amadeus Transfers
+ * Soporta múltiples tipos de transporte, especialmente transfers de aeropuerto
  */
 @Entity
 @Table(name = "transporte")
@@ -17,7 +17,7 @@ public class Transporte {
     private Integer id;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "tipo", columnDefinition = "ENUM('Avion', 'Bus', 'Tren', 'Barco', 'Auto_Rental', 'Taxi', 'Transfer')")
+    @Column(name = "tipo", columnDefinition = "ENUM('Avion', 'Bus', 'Tren', 'Barco', 'Auto_Rental', 'Taxi', 'Transfer')", nullable = false)
     private Tipo tipo;
 
     @Column(name = "proveedor", length = 100)
@@ -38,6 +38,10 @@ public class Transporte {
     @Column(name = "destino", length = 100)
     private String destino;
 
+    // ========================================
+    // Campos de Amadeus (existentes)
+    // ========================================
+    
     @Column(name = "amadeus_id", length = 50)
     private String amadeusId;
 
@@ -66,10 +70,40 @@ public class Transporte {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    // ========================================
+    // NUEVOS CAMPOS PARA TRANSFERS DE AMADEUS
+    // ========================================
+    
+    @Column(name = "transfer_id", length = 50)
+    private String transferId;
+    
+    @Column(name = "vehiculo_tipo", length = 50)
+    private String vehiculoTipo;
+    
+    @Column(name = "descripcion", columnDefinition = "TEXT")
+    private String descripcion;
+    
+    @Column(name = "distancia", precision = 10, scale = 2)
+    private BigDecimal distancia;
+    
+    @Column(name = "duracion_minutos")
+    private Integer duracionMinutos;
+    
+    @Column(name = "transfer_details", columnDefinition = "LONGTEXT")
+    private String transferDetails;
+
+    // ========================================
+    // Relación opcional con viaje
+    // ========================================
+    
     @ManyToOne
     @JoinColumn(name = "viaje_id", nullable = true)
     private Viaje viaje;
 
+    // ========================================
+    // Lifecycle Callbacks
+    // ========================================
+    
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -81,7 +115,10 @@ public class Transporte {
         }
     }
 
+    // ========================================
     // Constructores
+    // ========================================
+    
     public Transporte() {}
 
     public Transporte(Tipo tipo, String origen, String destino, BigDecimal precio) {
@@ -91,69 +128,234 @@ public class Transporte {
         this.precio = precio;
         this.estado = Estado.disponible;
     }
-
-    // Getters y Setters
-    public Integer getId() { return id; }
-    public void setId(Integer id) { this.id = id; }
-
-    public Tipo getTipo() { return tipo; }
-    public void setTipo(Tipo tipo) { this.tipo = tipo; }
-
-    public String getProveedor() { return proveedor; }
-    public void setProveedor(String proveedor) { this.proveedor = proveedor; }
     
-    public String getNumeroTransporte() { return numeroTransporte; }
-    public void setNumeroTransporte(String numeroTransporte) { this.numeroTransporte = numeroTransporte; }
+    public Transporte(Tipo tipo, String origen, String destino, BigDecimal precio, String currency) {
+        this.tipo = tipo;
+        this.origen = origen;
+        this.destino = destino;
+        this.precio = precio;
+        this.currency = currency;
+        this.estado = Estado.disponible;
+    }
 
-    public LocalDateTime getSalida() { return salida; }
-    public void setSalida(LocalDateTime salida) { this.salida = salida; }
+    // ========================================
+    // GETTERS Y SETTERS
+    // ========================================
+    
+    public Integer getId() { 
+        return id; 
+    }
+    
+    public void setId(Integer id) { 
+        this.id = id; 
+    }
 
-    public LocalDateTime getLlegada() { return llegada; }
-    public void setLlegada(LocalDateTime llegada) { this.llegada = llegada; }
+    public Tipo getTipo() { 
+        return tipo; 
+    }
+    
+    public void setTipo(Tipo tipo) { 
+        this.tipo = tipo; 
+    }
 
-    public String getOrigen() { return origen; }
-    public void setOrigen(String origen) { this.origen = origen; }
+    public String getProveedor() { 
+        return proveedor; 
+    }
+    
+    public void setProveedor(String proveedor) { 
+        this.proveedor = proveedor; 
+    }
+    
+    public String getNumeroTransporte() { 
+        return numeroTransporte; 
+    }
+    
+    public void setNumeroTransporte(String numeroTransporte) { 
+        this.numeroTransporte = numeroTransporte; 
+    }
 
-    public String getDestino() { return destino; }
-    public void setDestino(String destino) { this.destino = destino; }
+    public LocalDateTime getSalida() { 
+        return salida; 
+    }
+    
+    public void setSalida(LocalDateTime salida) { 
+        this.salida = salida; 
+    }
 
-    public String getAmadeusId() { return amadeusId; }
-    public void setAmadeusId(String amadeusId) { this.amadeusId = amadeusId; }
+    public LocalDateTime getLlegada() { 
+        return llegada; 
+    }
+    
+    public void setLlegada(LocalDateTime llegada) { 
+        this.llegada = llegada; 
+    }
 
-    public String getBookingReference() { return bookingReference; }
-    public void setBookingReference(String bookingReference) { this.bookingReference = bookingReference; }
+    public String getOrigen() { 
+        return origen; 
+    }
+    
+    public void setOrigen(String origen) { 
+        this.origen = origen; 
+    }
 
-    public BigDecimal getPrecio() { return precio; }
-    public void setPrecio(BigDecimal precio) { this.precio = precio; }
+    public String getDestino() { 
+        return destino; 
+    }
+    
+    public void setDestino(String destino) { 
+        this.destino = destino; 
+    }
 
-    public String getCurrency() { return currency; }
-    public void setCurrency(String currency) { this.currency = currency; }
+    public String getAmadeusId() { 
+        return amadeusId; 
+    }
+    
+    public void setAmadeusId(String amadeusId) { 
+        this.amadeusId = amadeusId; 
+    }
 
-    public Integer getCapacidad() { return capacidad; }
-    public void setCapacidad(Integer capacidad) { this.capacidad = capacidad; }
+    public String getBookingReference() { 
+        return bookingReference; 
+    }
+    
+    public void setBookingReference(String bookingReference) { 
+        this.bookingReference = bookingReference; 
+    }
 
-    public String getCategoria() { return categoria; }
-    public void setCategoria(String categoria) { this.categoria = categoria; }
+    public BigDecimal getPrecio() { 
+        return precio; 
+    }
+    
+    public void setPrecio(BigDecimal precio) { 
+        this.precio = precio; 
+    }
 
-    public Estado getEstado() { return estado; }
-    public void setEstado(Estado estado) { this.estado = estado; }
+    public String getCurrency() { 
+        return currency; 
+    }
+    
+    public void setCurrency(String currency) { 
+        this.currency = currency; 
+    }
 
-    public String getDetallesJson() { return detallesJson; }
-    public void setDetallesJson(String detallesJson) { this.detallesJson = detallesJson; }
+    public Integer getCapacidad() { 
+        return capacidad; 
+    }
+    
+    public void setCapacidad(Integer capacidad) { 
+        this.capacidad = capacidad; 
+    }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public String getCategoria() { 
+        return categoria; 
+    }
+    
+    public void setCategoria(String categoria) { 
+        this.categoria = categoria; 
+    }
 
-    public Viaje getViaje() { return viaje; }
-    public void setViaje(Viaje viaje) { this.viaje = viaje; }
+    public Estado getEstado() { 
+        return estado; 
+    }
+    
+    public void setEstado(Estado estado) { 
+        this.estado = estado; 
+    }
 
+    public String getDetallesJson() { 
+        return detallesJson; 
+    }
+    
+    public void setDetallesJson(String detallesJson) { 
+        this.detallesJson = detallesJson; 
+    }
+
+    public LocalDateTime getCreatedAt() { 
+        return createdAt; 
+    }
+    
+    public void setCreatedAt(LocalDateTime createdAt) { 
+        this.createdAt = createdAt; 
+    }
+    
+    // ========================================
+    // Getters/Setters para campos de Transfers
+    // ========================================
+    
+    public String getTransferId() { 
+        return transferId; 
+    }
+    
+    public void setTransferId(String transferId) { 
+        this.transferId = transferId; 
+    }
+    
+    public String getVehiculoTipo() { 
+        return vehiculoTipo; 
+    }
+    
+    public void setVehiculoTipo(String vehiculoTipo) { 
+        this.vehiculoTipo = vehiculoTipo; 
+    }
+    
+    public String getDescripcion() { 
+        return descripcion; 
+    }
+    
+    public void setDescripcion(String descripcion) { 
+        this.descripcion = descripcion; 
+    }
+    
+    public BigDecimal getDistancia() { 
+        return distancia; 
+    }
+    
+    public void setDistancia(BigDecimal distancia) { 
+        this.distancia = distancia; 
+    }
+    
+    public Integer getDuracionMinutos() { 
+        return duracionMinutos; 
+    }
+    
+    public void setDuracionMinutos(Integer duracionMinutos) { 
+        this.duracionMinutos = duracionMinutos; 
+    }
+    
+    public String getTransferDetails() { 
+        return transferDetails; 
+    }
+    
+    public void setTransferDetails(String transferDetails) { 
+        this.transferDetails = transferDetails; 
+    }
+
+    public Viaje getViaje() { 
+        return viaje; 
+    }
+    
+    public void setViaje(Viaje viaje) { 
+        this.viaje = viaje; 
+    }
+
+    // ========================================
     // Métodos deprecados para compatibilidad
+    // ========================================
+    
     @Deprecated
-    public String getNumero_transporte() { return numeroTransporte; }
+    public String getNumero_transporte() { 
+        return numeroTransporte; 
+    }
+    
     @Deprecated
-    public void setNumero_transporte(String numeroTransporte) { this.numeroTransporte = numeroTransporte; }
+    public void setNumero_transporte(String numeroTransporte) { 
+        this.numeroTransporte = numeroTransporte; 
+    }
 
+    // ========================================
     // Enums
+    // ========================================
+    
     public enum Tipo {
         Avion, Bus, Tren, Barco, Auto_Rental, Taxi, Transfer
     }
@@ -162,6 +364,59 @@ public class Transporte {
         disponible, reservado, cancelado
     }
 
+    // ========================================
+    // Métodos auxiliares
+    // ========================================
+    
+    /**
+     * Obtiene descripción formateada del transporte
+     */
+    public String getDescripcionCompleta() {
+        StringBuilder sb = new StringBuilder();
+        
+        sb.append(tipo).append(" - ");
+        
+        if (vehiculoTipo != null) {
+            sb.append(vehiculoTipo).append(" - ");
+        }
+        
+        sb.append(origen).append(" → ").append(destino);
+        
+        if (capacidad != null) {
+            sb.append(" (").append(capacidad).append(" personas)");
+        }
+        
+        return sb.toString();
+    }
+    
+    /**
+     * Obtiene precio formateado con moneda
+     */
+    public String getPrecioFormateado() {
+        if (precio == null) {
+            return "N/A";
+        }
+        return currency + " " + precio;
+    }
+    
+    /**
+     * Verifica si el transporte está disponible
+     */
+    public boolean estaDisponible() {
+        return estado == Estado.disponible;
+    }
+    
+    /**
+     * Verifica si es un transfer de aeropuerto
+     */
+    public boolean esTransferAeropuerto() {
+        return tipo == Tipo.Transfer && transferId != null;
+    }
+
+    // ========================================
+    // toString, equals, hashCode
+    // ========================================
+    
     @Override
     public String toString() {
         return "Transporte{" +
@@ -169,8 +424,41 @@ public class Transporte {
                 ", tipo=" + tipo +
                 ", origen='" + origen + '\'' +
                 ", destino='" + destino + '\'' +
+                ", vehiculoTipo='" + vehiculoTipo + '\'' +
                 ", precio=" + precio +
+                ", currency='" + currency + '\'' +
+                ", capacidad=" + capacidad +
                 ", estado=" + estado +
+                ", transferId='" + transferId + '\'' +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        
+        Transporte that = (Transporte) o;
+        
+        if (id != null && that.id != null) {
+            return id.equals(that.id);
+        }
+        
+        if (transferId != null && that.transferId != null) {
+            return transferId.equals(that.transferId);
+        }
+        
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        if (id != null) {
+            return id.hashCode();
+        }
+        if (transferId != null) {
+            return transferId.hashCode();
+        }
+        return super.hashCode();
     }
 }

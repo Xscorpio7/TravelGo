@@ -17,6 +17,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Controlador REST completo para Transfers
+ * Gestiona la búsqueda, reserva y administración de transfers
+ */
 @RestController
 @RequestMapping("/api/transporte")
 @CrossOrigin(origins = "*")
@@ -48,8 +52,16 @@ public class TransporteController {
         
         Map<String, Object> response = new HashMap<>();
         response.put("status", "OK");
-        response.put("message", "Transport Controller funcionando");
+        response.put("message", "Transport Controller funcionando correctamente");
         response.put("timestamp", System.currentTimeMillis());
+        response.put("endpoints", Map.of(
+            "search", "/api/transporte/search-transfers",
+            "available", "/api/transporte/disponibles",
+            "byType", "/api/transporte/por-tipo",
+            "search", "/api/transporte/buscar",
+            "reserve", "/api/transporte/{id}/reservar",
+            "cancel", "/api/transporte/{id}/cancelar"
+        ));
         
         return ResponseEntity.ok(response);
     }
@@ -232,6 +244,11 @@ public class TransporteController {
             response.put("status", "SUCCESS");
             response.put("data", transportes);
             response.put("count", transportes.size());
+            response.put("filters", Map.of(
+                "origen", origen != null ? origen : "todos",
+                "destino", destino != null ? destino : "todos",
+                "tipo", tipo != null ? tipo : "todos"
+            ));
             
             return ResponseEntity.ok(response);
             
@@ -333,10 +350,12 @@ public class TransporteController {
             response.put("status", "SUCCESS");
             response.put("message", "Transporte reservado correctamente");
             response.put("data", reservado);
+            response.put("reservadoPor", usuarioId);
             
             return ResponseEntity.ok(response);
             
         } catch (RuntimeException e) {
+            logger.error("❌ Error al reservar: {}", e.getMessage());
             Map<String, Object> error = new HashMap<>();
             error.put("error", e.getMessage());
             return ResponseEntity.badRequest().body(error);
@@ -367,6 +386,12 @@ public class TransporteController {
             String token = authHeader.substring(7);
             Integer usuarioId = jwtUtil.extractUsuarioId(token);
             
+            if (jwtUtil.isTokenExpired(token)) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("error", "Token expirado");
+                return ResponseEntity.status(401).body(error);
+            }
+            
             logger.info("❌ Usuario {} cancelando transporte {}", usuarioId, id);
             
             Transporte cancelado = transportService.cancelarReserva(id);
@@ -395,7 +420,9 @@ public class TransporteController {
      * PUT /api/transporte/{id}
      */
     @PutMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> actualizar(@PathVariable Integer id, @RequestBody Transporte transporteDetails) {
+    public ResponseEntity<Map<String, Object>> actualizar(
+            @PathVariable Integer id, 
+            @RequestBody Transporte transporteDetails) {
         try {
             logger.info("✏️ Actualizando transporte: {}", id);
             
@@ -450,7 +477,32 @@ public class TransporteController {
     }
     
     /**
-     * Ejemplo de búsqueda de transfers
+     * Obtener estadísticas de transfers
+     * GET /api/transporte/stats
+     */
+    @GetMapping("/stats")
+    public ResponseEntity<Map<String, Object>> getStats() {
+        try {
+            logger.info("📊 Obteniendo estadísticas");
+            
+            Map<String, Object> stats = transportService.obtenerEstadisticas();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "SUCCESS");
+            response.put("data", stats);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("❌ Error: {}", e.getMessage());
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "Error: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(error);
+        }
+    }
+    
+    /**
+     * Ejemplo de búsqueda de transfers (Athens)
      * GET /api/transporte/example
      */
     @GetMapping("/example")
@@ -472,12 +524,20 @@ public class TransporteController {
             response.put("message", "Ejemplo de búsqueda completado");
             response.put("data", transfers);
             response.put("count", transfers.size());
+            response.put("search", Map.of(
+                "airportCode", "ATH",
+                "cityName", "Athens",
+                "countryCode", "GR",
+                "dateTime", "2025-12-15T10:00:00",
+                "passengers", 2
+            ));
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             logger.error("❌ Error en ejemplo: {}", e.getMessage(), e);
             response.put("error", "Error: " + e.getMessage());
+            response.put("type", e.getClass().getSimpleName());
             return ResponseEntity.internalServerError().body(response);
         }
     }
