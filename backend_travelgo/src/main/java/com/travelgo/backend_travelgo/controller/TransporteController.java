@@ -1,6 +1,5 @@
 package com.travelgo.backend_travelgo.controller;
 
-import com.amadeus.exceptions.ResponseException;
 import com.travelgo.backend_travelgo.model.Transporte;
 import com.travelgo.backend_travelgo.repository.TransporteRepository;
 import com.travelgo.backend_travelgo.service.AmadeusConnect;
@@ -140,14 +139,22 @@ public class TransporteController {
             
             return ResponseEntity.ok(json);
             
-        } catch (ResponseException e) {
-            logger.error("❌ Error de Amadeus API", e);
-            String errorMsg = e.getMessage() != null ? e.getMessage().replace("\"", "'") : "Error desconocido";
-            return ResponseEntity.badRequest()
-                    .body("{\"error\":\"Error Amadeus: " + errorMsg + "\"}");
+        } catch (RuntimeException e) {
+            // Captura RuntimeException que incluye errores de Amadeus envueltos
+            logger.error("❌ Error en búsqueda de transfers: {}", e.getMessage(), e);
+            String errorMsg = e.getMessage() != null ? e.getMessage().replace("\"", "'") : "Error en búsqueda";
+            
+            // Verificar si es un error de Amadeus API
+            if (errorMsg.contains("Amadeus") || errorMsg.contains("API")) {
+                return ResponseEntity.badRequest()
+                        .body("{\"error\":\"Error Amadeus: " + errorMsg + "\"}");
+            }
+            
+            return ResponseEntity.internalServerError()
+                    .body("{\"error\":\"" + errorMsg + "\"}");
                     
         } catch (Exception e) {
-            logger.error("❌ Error en búsqueda de transfers", e);
+            logger.error("❌ Error inesperado en búsqueda de transfers", e);
             String errorMsg = e.getMessage() != null ? e.getMessage().replace("\"", "'") : "Error interno";
             return ResponseEntity.internalServerError()
                     .body("{\"error\":\"" + errorMsg + "\"}");
@@ -536,6 +543,7 @@ public class TransporteController {
             
         } catch (Exception e) {
             logger.error("❌ Error en ejemplo: {}", e.getMessage(), e);
+            response.put("status", "ERROR");
             response.put("error", "Error: " + e.getMessage());
             response.put("type", e.getClass().getSimpleName());
             return ResponseEntity.internalServerError().body(response);
