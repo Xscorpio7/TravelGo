@@ -10,7 +10,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.google.gson.Gson;
 
 import java.util.HashMap;
 import java.util.List;
@@ -19,6 +18,7 @@ import java.util.Map;
 /**
  * Controlador REST completo para Transfers
  * Gestiona la búsqueda, reserva y administración de transfers
+ * ✅ CORREGIDO: Sin problemas de serialización de Gson
  */
 @RestController
 @RequestMapping("/api/transporte")
@@ -38,8 +38,6 @@ public class TransporteController {
     
     @Autowired
     private JwtUtil jwtUtil;
-    
-    private final Gson gson = new Gson();
     
     /**
      * Test del controlador
@@ -66,7 +64,7 @@ public class TransporteController {
     }
     
     /**
-     * Buscar transfers desde aeropuerto usando Amadeus
+     * ✅ MÉTODO CORREGIDO - Buscar transfers desde aeropuerto usando Amadeus
      * GET /api/transporte/search-transfers
      * 
      * @param airportCode Código IATA del aeropuerto (ej: "MAD", "BCN", "ATH")
@@ -75,8 +73,8 @@ public class TransporteController {
      * @param dateTime Fecha y hora ISO 8601 (ej: "2025-12-15T10:00:00")
      * @param passengers Número de pasajeros (default: 1)
      */
-    @GetMapping(value = "/search-transfers", produces = "application/json")
-    public ResponseEntity<String> searchTransfers(
+    @GetMapping("/search-transfers")
+    public ResponseEntity<Map<String, Object>> searchTransfers(
             @RequestParam String airportCode,
             @RequestParam String cityName,
             @RequestParam String countryCode,
@@ -89,31 +87,37 @@ public class TransporteController {
         try {
             // Validaciones
             if (airportCode == null || airportCode.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                    .body("{\"error\":\"El código del aeropuerto es requerido (ej: MAD, BCN)\"}");
+                Map<String, Object> error = new HashMap<>();
+                error.put("error", "El código del aeropuerto es requerido (ej: MAD, BCN)");
+                return ResponseEntity.badRequest().body(error);
             }
             
             if (cityName == null || cityName.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                    .body("{\"error\":\"El nombre de la ciudad es requerido\"}");
+                Map<String, Object> error = new HashMap<>();
+                error.put("error", "El nombre de la ciudad es requerido");
+                return ResponseEntity.badRequest().body(error);
             }
             
             if (countryCode == null || countryCode.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                    .body("{\"error\":\"El código del país es requerido (ej: ES, GR)\"}");
+                Map<String, Object> error = new HashMap<>();
+                error.put("error", "El código del país es requerido (ej: ES, GR)");
+                return ResponseEntity.badRequest().body(error);
             }
             
             if (dateTime == null || dateTime.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                    .body("{\"error\":\"La fecha y hora son requeridas (formato: 2025-12-15T10:00:00)\"}");
+                Map<String, Object> error = new HashMap<>();
+                error.put("error", "La fecha y hora son requeridas (formato: 2025-12-15T10:00:00)");
+                return ResponseEntity.badRequest().body(error);
             }
             
             if (passengers < 1 || passengers > 8) {
-                return ResponseEntity.badRequest()
-                    .body("{\"error\":\"El número de pasajeros debe estar entre 1 y 8\"}");
+                Map<String, Object> error = new HashMap<>();
+                error.put("error", "El número de pasajeros debe estar entre 1 y 8");
+                return ResponseEntity.badRequest().body(error);
             }
             
-            // Buscar en Amadeus y guardar
+            // ✅ CORREGIDO: Buscar en Amadeus y guardar
+            // El servicio devuelve List<Transporte> que Spring puede serializar sin problemas
             List<Transporte> transfers = transportService.buscarYGuardarTransfers(
                 airportCode.toUpperCase().trim(),
                 cityName.trim(),
@@ -134,30 +138,30 @@ public class TransporteController {
                 "passengers", passengers
             ));
             
-            String json = gson.toJson(response);
             logger.info("✅ Búsqueda exitosa: {} transfers encontrados", transfers.size());
             
-            return ResponseEntity.ok(json);
+            // ✅ Retornar Map directamente - Spring lo serializa con Jackson (no Gson)
+            // Jackson no tiene problemas con LocalDateTime
+            return ResponseEntity.ok(response);
             
         } catch (RuntimeException e) {
-            // Captura RuntimeException que incluye errores de Amadeus envueltos
             logger.error("❌ Error en búsqueda de transfers: {}", e.getMessage(), e);
-            String errorMsg = e.getMessage() != null ? e.getMessage().replace("\"", "'") : "Error en búsqueda";
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", e.getMessage() != null ? e.getMessage() : "Error en búsqueda");
+            error.put("status", "ERROR");
             
-            // Verificar si es un error de Amadeus API
-            if (errorMsg.contains("Amadeus") || errorMsg.contains("API")) {
-                return ResponseEntity.badRequest()
-                        .body("{\"error\":\"Error Amadeus: " + errorMsg + "\"}");
+            if (e.getMessage() != null && (e.getMessage().contains("Amadeus") || e.getMessage().contains("API"))) {
+                return ResponseEntity.badRequest().body(error);
             }
             
-            return ResponseEntity.internalServerError()
-                    .body("{\"error\":\"" + errorMsg + "\"}");
+            return ResponseEntity.internalServerError().body(error);
                     
         } catch (Exception e) {
             logger.error("❌ Error inesperado en búsqueda de transfers", e);
-            String errorMsg = e.getMessage() != null ? e.getMessage().replace("\"", "'") : "Error interno";
-            return ResponseEntity.internalServerError()
-                    .body("{\"error\":\"" + errorMsg + "\"}");
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", e.getMessage() != null ? e.getMessage() : "Error interno");
+            error.put("status", "ERROR");
+            return ResponseEntity.internalServerError().body(error);
         }
     }
     

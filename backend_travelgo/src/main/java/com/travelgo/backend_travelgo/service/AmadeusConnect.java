@@ -10,18 +10,12 @@ import com.amadeus.exceptions.ResponseException;
 import com.amadeus.referencedata.Locations;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.Gson;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonSerializer;
-import com.google.gson.JsonDeserializer;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,19 +28,12 @@ public class AmadeusConnect {
     private final Amadeus amadeus;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
-    private final Gson gson = new GsonBuilder()
-    .registerTypeAdapter(LocalDateTime.class, (JsonSerializer<LocalDateTime>) (src, typeOfSrc, context) -> 
-        new com.google.gson.JsonPrimitive(src.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)))
-    .registerTypeAdapter(LocalDateTime.class, (JsonDeserializer<LocalDateTime>) (json, typeOfT, context) -> 
-        LocalDateTime.parse(json.getAsString(), DateTimeFormatter.ISO_LOCAL_DATE_TIME))
-    .create();
     private final String clientId;
     private final String clientSecret;
     private String accessToken;
     private long tokenExpiration = 0;
     
     private static final String AMADEUS_AUTH_URL = "https://test.api.amadeus.com/v1/security/oauth2/token";
-    // ✅ CORRECTO: Transfer Search API v1 con POST
     private static final String AMADEUS_TRANSFER_URL = "https://test.api.amadeus.com/v1/shopping/transfer-offers";
     
     public AmadeusConnect(
@@ -57,7 +44,6 @@ public class AmadeusConnect {
         this.clientSecret = clientSecret;
         this.restTemplate = new RestTemplate();
         this.objectMapper = new ObjectMapper();
-        
         
         logger.info("=== INICIALIZANDO AMADEUS ===");
         logger.info("Client ID: {}", clientId != null ? clientId.substring(0, Math.min(8, clientId.length())) + "..." : "null");
@@ -253,18 +239,7 @@ public class AmadeusConnect {
     
     /**
      * ✅ MÉTODO CORREGIDO - Transfer Search API v1 con POST
-     * 
-     * Documentación oficial:
-     * https://developers.amadeus.com/self-service/category/cars-and-transfers/api-doc/transfer-search
-     * 
-     * IMPORTANTE: Este endpoint usa POST, no GET
-     * 
-     * @param airportCode Código IATA del aeropuerto (ej: "ATH", "MAD")
-     * @param cityName Nombre de la ciudad destino (ej: "Athens", "Madrid")
-     * @param countryCode Código ISO del país (ej: "GR", "ES")
-     * @param dateTime Fecha y hora ISO 8601 (ej: "2025-12-15T10:00:00")
-     * @param passengers Número de pasajeros (1-8)
-     * @return Array de TransferOffering
+     * SIN Gson - usa solo ObjectMapper de Jackson
      */
     public TransferOffering[] searchAirportTransfers(
         String airportCode,
@@ -279,17 +254,16 @@ public class AmadeusConnect {
     try {
         String token = getAccessToken();
         
-        // ✅ OBTENER COORDENADAS
+        // Obtener coordenadas
         double[] coords = getCityCoordinates(cityName, countryCode);
         logger.info("📍 Usando coordenadas: [{}, {}]", coords[0], coords[1]);
         
-        // ✅ BODY JSON CON GEOCODES
+        // Body JSON con coordenadas
         Map<String, Object> requestBody = new HashMap<>();
         
-        // Ubicación inicio
         requestBody.put("startLocationCode", airportCode.trim());
         
-        // ✅ GEOCODES (OBLIGATORIO)
+        // Geocodes (OBLIGATORIO)
         Map<String, Double> endGeoCode = new HashMap<>();
         endGeoCode.put("latitude", coords[0]);
         endGeoCode.put("longitude", coords[1]);
@@ -304,7 +278,7 @@ public class AmadeusConnect {
         requestBody.put("startDateTime", dateTime.trim());
         requestBody.put("passengers", passengers);
         
-        logger.info("📦 Request Body: {}", gson.toJson(requestBody));
+        logger.info("📦 Request Body: {}", objectMapper.writeValueAsString(requestBody));
         
         // Headers
         HttpHeaders headers = new HttpHeaders();
@@ -337,7 +311,8 @@ public class AmadeusConnect {
                 if (data.isArray()) {
                     for (JsonNode item : data) {
                         try {
-                            TransferOffering offering = gson.fromJson(item.toString(), TransferOffering.class);
+                            // ✅ USAR OBJECTMAPPER en lugar de Gson
+                            TransferOffering offering = objectMapper.treeToValue(item, TransferOffering.class);
                             offerings.add(offering);
                         } catch (Exception e) {
                             logger.warn("⚠️ Error parseando transfer: {}", e.getMessage());

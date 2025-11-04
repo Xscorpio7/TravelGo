@@ -2,7 +2,7 @@ package com.travelgo.backend_travelgo.service;
 
 import com.amadeus.exceptions.ResponseException;
 import com.amadeus.resources.TransferOffering;
-import com.google.gson.Gson;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.travelgo.backend_travelgo.model.Transporte;
 import com.travelgo.backend_travelgo.repository.TransporteRepository;
 import org.slf4j.Logger;
@@ -10,11 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonSerializer;
-import com.google.gson.JsonDeserializer;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -27,6 +22,7 @@ import java.util.Optional;
 /**
  * Servicio completo para gestión de Transfers
  * Integración con Amadeus Transfer Search API
+ * ✅ CORREGIDO: Sin problemas de serialización de Gson
  */
 @Service
 public class TransportService {
@@ -39,23 +35,13 @@ public class TransportService {
     @Autowired
     private AmadeusConnect amadeusConnect;
     
-    private final Gson gson = new GsonBuilder()
-    .registerTypeAdapter(LocalDateTime.class, (JsonSerializer<LocalDateTime>) (src, typeOfSrc, context) -> 
-        new com.google.gson.JsonPrimitive(src.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)))
-    .registerTypeAdapter(LocalDateTime.class, (JsonDeserializer<LocalDateTime>) (json, typeOfT, context) -> 
-        LocalDateTime.parse(json.getAsString(), DateTimeFormatter.ISO_LOCAL_DATE_TIME))
-    .create();
+    // ✅ USAR OBJECTMAPPER en lugar de Gson
+    private final ObjectMapper objectMapper = new ObjectMapper();
     
    /**
  * Buscar transfers desde Amadeus y guardarlos en la BD
  * Si Amadeus no tiene datos, busca en BD local
- * 
- * @param airportCode Código IATA del aeropuerto
- * @param cityName Nombre de la ciudad
- * @param countryCode Código ISO del país
- * @param dateTime Fecha y hora ISO 8601
- * @param passengers Número de pasajeros
- * @return Lista de transfers encontrados y guardados
+ * ✅ CORREGIDO: Sin problemas de serialización
  */
 @Transactional
 public List<Transporte> buscarYGuardarTransfers(String airportCode, String cityName, 
@@ -156,12 +142,7 @@ private List<Transporte> buscarTransfersLocales(String origen, String destino) {
 
     
     /**
-     * Convertir TransferOffering de Amadeus a entidad Transporte
-     * 
-     * @param offering Oferta de Amadeus
-     * @param origen Código del aeropuerto
-     * @param destino Nombre de la ciudad
-     * @return Entidad Transporte lista para guardar
+     * ✅ CORREGIDO: Convertir TransferOffering a Transporte sin usar Gson
      */
     private Transporte convertirAmadeusATransporte(TransferOffering offering, 
                                                    String origen, String destino) {
@@ -188,13 +169,11 @@ private List<Transporte> buscarTransfersLocales(String origen, String destino) {
             
             // Precio
             if (offering.getQuotation() != null) {
-                // Precio total
                 if (offering.getQuotation().getTotalPrice() != null) {
                     String precioStr = offering.getQuotation().getTotalPrice().getMonetaryAmount();
                     transporte.setPrecio(new BigDecimal(precioStr));
                     transporte.setCurrency(offering.getQuotation().getTotalPrice().getCurrencyCode());
                 } 
-                // Si no hay precio total, usar precio base
                 else if (offering.getQuotation().getBase() != null) {
                     String precioStr = offering.getQuotation().getBase().getMonetaryAmount();
                     transporte.setPrecio(new BigDecimal(precioStr));
@@ -207,13 +186,11 @@ private List<Transporte> buscarTransfersLocales(String origen, String destino) {
                 transporte.setVehiculoTipo(offering.getVehicle().getCode());
                 transporte.setCapacidad(offering.getVehicle().getSeats());
                 
-                // Descripción del vehículo
                 StringBuilder desc = new StringBuilder();
                 if (offering.getVehicle().getDescription() != null) {
                     desc.append(offering.getVehicle().getDescription());
                 }
                 
-                // Agregar características
                 if (offering.getVehicle().getCharacteristics() != null) {
                     TransferOffering.Vehicle.VehicleCharacteristics chars = 
                         offering.getVehicle().getCharacteristics();
@@ -228,7 +205,6 @@ private List<Transporte> buscarTransfersLocales(String origen, String destino) {
                 
                 transporte.setDescripcion(desc.toString());
                 
-                // Categoría
                 if (offering.getVehicle().getCategory() != null) {
                     transporte.setCategoria(offering.getVehicle().getCategory());
                 }
@@ -239,18 +215,22 @@ private List<Transporte> buscarTransfersLocales(String origen, String destino) {
                 transporte.setDistancia(new BigDecimal(offering.getDistance().getValue()));
             }
             
-            // Duración estimada (si está disponible)
-            // Nota: Amadeus no siempre proporciona duración, podemos estimarla
+            // Duración estimada
             if (transporte.getDistancia() != null) {
-                // Estimación: 40 km/h promedio en ciudad
                 double distanciaKm = transporte.getDistancia().doubleValue();
                 int duracionMinutos = (int) Math.ceil((distanciaKm / 40.0) * 60);
                 transporte.setDuracionMinutos(duracionMinutos);
             }
             
-            // Guardar JSON completo para referencia
-            transporte.setTransferDetails(gson.toJson(offering));
-            transporte.setDetallesJson(gson.toJson(offering));
+            // ✅ GUARDAR JSON USANDO OBJECTMAPPER en lugar de Gson
+            try {
+                String jsonDetails = objectMapper.writeValueAsString(offering);
+                transporte.setTransferDetails(jsonDetails);
+                transporte.setDetallesJson(jsonDetails);
+            } catch (Exception e) {
+                logger.warn("⚠️ No se pudo serializar offering a JSON: {}", e.getMessage());
+                // Continuar sin el JSON detallado
+            }
             
             // Tipo de transfer
             if (offering.getTransferType() != null) {
@@ -260,7 +240,7 @@ private List<Transporte> buscarTransfersLocales(String origen, String destino) {
             // Estado inicial
             transporte.setEstado(Transporte.Estado.disponible);
             
-            // Fechas (opcional, basado en la búsqueda)
+            // Fechas
             if (offering.getStart() != null && offering.getStart().getDateTime() != null) {
                 try {
                     LocalDateTime salida = LocalDateTime.parse(
@@ -347,9 +327,6 @@ private List<Transporte> buscarTransfersLocales(String origen, String destino) {
     
     /**
      * Reservar un transporte
-     * 
-     * @param id ID del transporte
-     * @return Transporte reservado
      */
     @Transactional
     public Transporte reservarTransporte(Integer id) {
@@ -371,9 +348,6 @@ private List<Transporte> buscarTransfersLocales(String origen, String destino) {
     
     /**
      * Cancelar reserva de transporte
-     * 
-     * @param id ID del transporte
-     * @return Transporte con reserva cancelada
      */
     @Transactional
     public Transporte cancelarReserva(Integer id) {
@@ -394,10 +368,7 @@ private List<Transporte> buscarTransfersLocales(String origen, String destino) {
     }
     
     /**
-     * Crear transporte manualmente (sin Amadeus)
-     * 
-     * @param transporte Datos del transporte
-     * @return Transporte guardado
+     * Crear transporte manualmente
      */
     @Transactional
     public Transporte crearTransporte(Transporte transporte) {
@@ -416,10 +387,6 @@ private List<Transporte> buscarTransfersLocales(String origen, String destino) {
     
     /**
      * Actualizar transporte existente
-     * 
-     * @param id ID del transporte
-     * @param transporteDetails Datos actualizados
-     * @return Transporte actualizado
      */
     @Transactional
     public Transporte actualizarTransporte(Integer id, Transporte transporteDetails) {
@@ -474,8 +441,6 @@ private List<Transporte> buscarTransfersLocales(String origen, String destino) {
     
     /**
      * Eliminar transporte
-     * 
-     * @param id ID del transporte
      */
     @Transactional
     public void eliminarTransporte(Integer id) {
@@ -490,22 +455,14 @@ private List<Transporte> buscarTransfersLocales(String origen, String destino) {
     }
     
     /**
-     * Calcular precio estimado basado en distancia y tipo
-     * Útil para dar estimaciones antes de buscar en Amadeus
-     * 
-     * @param origen Código de origen
-     * @param destino Código de destino
-     * @param tipo Tipo de transporte
-     * @return Precio estimado
+     * Calcular precio estimado
      */
     public BigDecimal calcularPrecioEstimado(String origen, String destino, Transporte.Tipo tipo) {
         logger.info("💰 Calculando precio estimado para {} -> {} ({})", origen, destino, tipo);
         
-        // Buscar transportes similares
         List<Transporte> similares = buscarPorOrigenDestinoTipo(origen, destino, tipo);
         
         if (!similares.isEmpty()) {
-            // Calcular promedio de precios existentes
             BigDecimal total = BigDecimal.ZERO;
             int count = 0;
             
@@ -523,7 +480,7 @@ private List<Transporte> buscarTransfersLocales(String origen, String destino) {
             }
         }
         
-        // Si no hay datos, usar precios base por tipo
+        // Precios base por tipo
         BigDecimal precioBase;
         switch (tipo) {
             case Transfer:
@@ -557,18 +514,15 @@ private List<Transporte> buscarTransfersLocales(String origen, String destino) {
     
     /**
      * Obtener estadísticas de transfers
-     * Útil para dashboard admin
      */
     public Map<String, Object> obtenerEstadisticas() {
         logger.info("📊 Obteniendo estadísticas de transfers");
         
         Map<String, Object> stats = new HashMap<>();
         
-        // Total de transfers
         long total = transporteRepository.count();
         stats.put("total", total);
         
-        // Por estado
         long disponibles = transporteRepository.countByEstado(Transporte.Estado.disponible);
         long reservados = transporteRepository.countByEstado(Transporte.Estado.reservado);
         long cancelados = transporteRepository.countByEstado(Transporte.Estado.cancelado);
@@ -577,7 +531,6 @@ private List<Transporte> buscarTransfersLocales(String origen, String destino) {
         stats.put("reservados", reservados);
         stats.put("cancelados", cancelados);
         
-        // Por tipo
         long transfers = transporteRepository.countByTipo(Transporte.Tipo.Transfer);
         stats.put("transfers", transfers);
         
