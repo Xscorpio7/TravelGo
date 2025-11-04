@@ -10,7 +10,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSerializer;
+import com.google.gson.JsonDeserializer;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -35,36 +39,38 @@ public class TransportService {
     @Autowired
     private AmadeusConnect amadeusConnect;
     
-    private final Gson gson = new Gson();
+    private final Gson gson = new GsonBuilder()
+    .registerTypeAdapter(LocalDateTime.class, (JsonSerializer<LocalDateTime>) (src, typeOfSrc, context) -> 
+        new com.google.gson.JsonPrimitive(src.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)))
+    .registerTypeAdapter(LocalDateTime.class, (JsonDeserializer<LocalDateTime>) (json, typeOfT, context) -> 
+        LocalDateTime.parse(json.getAsString(), DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+    .create();
     
-    /**
-     * Buscar transfers desde Amadeus y guardarlos en la BD
-     * 
-     * @param airportCode Código IATA del aeropuerto
-     * @param cityName Nombre de la ciudad
-     * @param countryCode Código ISO del país
-     * @param dateTime Fecha y hora ISO 8601
-     * @param passengers Número de pasajeros
-     * @return Lista de transfers encontrados y guardados
-     */
-    @Transactional
-    public List<Transporte> buscarYGuardarTransfers(String airportCode, String cityName, 
-                                                    String countryCode, String dateTime, 
-                                                    int passengers) {
-        logger.info("🔍 Buscando transfers desde aeropuerto: {} a {} ({}) - {} pasajeros", 
-                   airportCode, cityName, countryCode, passengers);
+   /**
+ * Buscar transfers desde Amadeus y guardarlos en la BD
+ * Si Amadeus no tiene datos, busca en BD local
+ * 
+ * @param airportCode Código IATA del aeropuerto
+ * @param cityName Nombre de la ciudad
+ * @param countryCode Código ISO del país
+ * @param dateTime Fecha y hora ISO 8601
+ * @param passengers Número de pasajeros
+ * @return Lista de transfers encontrados y guardados
+ */
+@Transactional
+public List<Transporte> buscarYGuardarTransfers(String airportCode, String cityName, 
+                                                String countryCode, String dateTime, 
+                                                int passengers) {
+    logger.info("🔍 Buscando transfers: {} -> {} ({}) - {} pasajeros", 
+               airportCode, cityName, countryCode, passengers);
+    
+    try {
+        // 1. Intentar buscar en Amadeus
+        TransferOffering[] offerings = amadeusConnect.searchAirportTransfers(
+            airportCode, cityName, countryCode, dateTime, passengers
+        );
         
-        try {
-            // 1. Buscar en Amadeus
-            TransferOffering[] offerings = amadeusConnect.searchAirportTransfers(
-                airportCode, cityName, countryCode, dateTime, passengers
-            );
-            
-            if (offerings == null || offerings.length == 0) {
-                logger.warn("⚠️ No se encontraron transfers para {} -> {}", airportCode, cityName);
-                return new ArrayList<>();
-            }
-            
+        if (offerings != null && offerings.length > 0) {
             logger.info("✅ Amadeus devolvió {} transfers", offerings.length);
             
             List<Transporte> transportes = new ArrayList<>();
@@ -80,37 +86,74 @@ public class TransportService {
                     );
                     
                     if (existente.isEmpty()) {
-                        // Guardar nuevo transfer
                         Transporte guardado = transporteRepository.save(transporte);
                         transportes.add(guardado);
-                        logger.debug("💾 Transfer guardado: ID={}, Tipo={}, Precio={} {}", 
-                                   guardado.getId(), 
-                                   guardado.getVehiculoTipo(),
-                                   guardado.getPrecio(),
-                                   guardado.getCurrency());
+                        logger.debug("💾 Transfer guardado: ID={}", guardado.getId());
                     } else {
-                        // Ya existe, usar el existente
                         transportes.add(existente.get());
                         logger.debug("ℹ️ Transfer ya existe: ID={}", existente.get().getId());
                     }
                     
                 } catch (Exception e) {
                     logger.error("❌ Error al procesar transfer individual: {}", e.getMessage());
-                    // Continuar con el siguiente
                 }
             }
             
-            logger.info("✅ Total de transfers procesados: {}", transportes.size());
+            logger.info("✅ Total de transfers de Amadeus: {}", transportes.size());
             return transportes;
-            
-        } catch (ResponseException e) {
-            logger.error("❌ Error Amadeus API: {}", e.getMessage());
-            throw new RuntimeException("Error al buscar transfers en Amadeus: " + e.getMessage(), e);
-        } catch (Exception e) {
-            logger.error("❌ Error inesperado: {}", e.getMessage(), e);
-            throw new RuntimeException("Error al buscar y guardar transfers: " + e.getMessage(), e);
         }
+        
+        // 3. Si Amadeus no tiene datos, buscar en BD local
+        logger.warn("⚠️ Amadeus no tiene transfers para {} -> {}. Buscando en BD local...", 
+                   airportCode, cityName);
+        
+    } catch (ResponseException e) {
+        logger.error("❌ Error Amadeus API: {}", e.getMessage());
+        logger.info("🔄 Fallback: Buscando en BD local por error de Amadeus...");
+        
+    } catch (Exception e) {
+        logger.error("❌ Error inesperado: {}", e.getMessage());
+        logger.info("🔄 Fallback: Buscando en BD local...");
     }
+    
+    // 4. Buscar en BD local (fallback)
+    List<Transporte> locales = buscarTransfersLocales(airportCode, cityName);
+    
+    if (!locales.isEmpty()) {
+        logger.info("✅ Encontrados {} transfers en BD local", locales.size());
+        return locales;
+    }
+    
+    logger.warn("⚠️ No se encontraron transfers ni en Amadeus ni en BD local");
+    return new ArrayList<>();
+}
+
+/**
+ * Buscar transfers en BD local por origen/destino
+ */
+private List<Transporte> buscarTransfersLocales(String origen, String destino) {
+    logger.debug("🔍 Buscando transfers locales: {} -> {}", origen, destino);
+    
+    // Buscar por origen
+    List<Transporte> porOrigen = transporteRepository.findByOrigenContainingIgnoreCase(origen);
+    
+    if (!porOrigen.isEmpty()) {
+        // Filtrar por tipo Transfer y estado disponible
+        List<Transporte> filtrados = porOrigen.stream()
+            .filter(t -> t.getTipo() == Transporte.Tipo.Transfer)
+            .filter(t -> t.getEstado() == Transporte.Estado.disponible)
+            .filter(t -> t.getDestino() != null && 
+                   t.getDestino().toLowerCase().contains(destino.toLowerCase()))
+            .collect(java.util.stream.Collectors.toList());
+        
+        logger.debug("📦 Encontrados {} transfers locales filtrados", filtrados.size());
+        return filtrados;
+    }
+    
+    logger.debug("⚠️ No se encontraron transfers locales");
+    return new ArrayList<>();
+}
+
     
     /**
      * Convertir TransferOffering de Amadeus a entidad Transporte

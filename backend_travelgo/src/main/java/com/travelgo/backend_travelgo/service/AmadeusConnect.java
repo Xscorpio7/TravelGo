@@ -17,7 +17,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSerializer;
+import com.google.gson.JsonDeserializer;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,7 +34,12 @@ public class AmadeusConnect {
     private final Amadeus amadeus;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
-    private final Gson gson;
+    private final Gson gson = new GsonBuilder()
+    .registerTypeAdapter(LocalDateTime.class, (JsonSerializer<LocalDateTime>) (src, typeOfSrc, context) -> 
+        new com.google.gson.JsonPrimitive(src.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)))
+    .registerTypeAdapter(LocalDateTime.class, (JsonDeserializer<LocalDateTime>) (json, typeOfT, context) -> 
+        LocalDateTime.parse(json.getAsString(), DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+    .create();
     private final String clientId;
     private final String clientSecret;
     private String accessToken;
@@ -48,7 +57,7 @@ public class AmadeusConnect {
         this.clientSecret = clientSecret;
         this.restTemplate = new RestTemplate();
         this.objectMapper = new ObjectMapper();
-        this.gson = new Gson();
+        
         
         logger.info("=== INICIALIZANDO AMADEUS ===");
         logger.info("Client ID: {}", clientId != null ? clientId.substring(0, Math.min(8, clientId.length())) + "..." : "null");
@@ -258,126 +267,164 @@ public class AmadeusConnect {
      * @return Array de TransferOffering
      */
     public TransferOffering[] searchAirportTransfers(
-            String airportCode,
-            String cityName,
-            String countryCode,
-            String dateTime,
-            int passengers) throws ResponseException {
+        String airportCode,
+        String cityName,
+        String countryCode,
+        String dateTime,
+        int passengers) throws ResponseException {
+    
+    logger.info("🚗 Búsqueda de transfers: {} -> {} ({}), Fecha: {}, Pasajeros: {}", 
+               airportCode, cityName, countryCode, dateTime, passengers);
+    
+    try {
+        String token = getAccessToken();
         
-        logger.info("🚗 Búsqueda de transfers: {} -> {} ({}), Fecha: {}, Pasajeros: {}", 
-                   airportCode, cityName, countryCode, dateTime, passengers);
+        // ✅ OBTENER COORDENADAS
+        double[] coords = getCityCoordinates(cityName, countryCode);
+        logger.info("📍 Usando coordenadas: [{}, {}]", coords[0], coords[1]);
         
-        try {
-            String token = getAccessToken();
+        // ✅ BODY JSON CON GEOCODES
+        Map<String, Object> requestBody = new HashMap<>();
+        
+        // Ubicación inicio
+        requestBody.put("startLocationCode", airportCode.trim());
+        
+        // ✅ GEOCODES (OBLIGATORIO)
+        Map<String, Double> endGeoCode = new HashMap<>();
+        endGeoCode.put("latitude", coords[0]);
+        endGeoCode.put("longitude", coords[1]);
+        requestBody.put("endGeoCode", endGeoCode);
+        
+        // Dirección (complementario)
+        requestBody.put("endAddressLine", cityName.trim());
+        requestBody.put("endCountryCode", countryCode.trim().toUpperCase());
+        
+        // Otros parámetros
+        requestBody.put("transferType", "PRIVATE");
+        requestBody.put("startDateTime", dateTime.trim());
+        requestBody.put("passengers", passengers);
+        
+        logger.info("📦 Request Body: {}", gson.toJson(requestBody));
+        
+        // Headers
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Bearer " + token);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Accept", "application/vnd.amadeus+json");
+        
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+        
+        logger.info("📡 POST Request to: {}", AMADEUS_TRANSFER_URL);
+        
+        ResponseEntity<JsonNode> response = restTemplate.exchange(
+            AMADEUS_TRANSFER_URL, 
+            HttpMethod.POST,
+            entity, 
+            JsonNode.class
+        );
+        
+        logger.info("📥 Status Code: {}", response.getStatusCode());
+        
+        if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+            JsonNode result = response.getBody();
             
-            // ✅ BODY JSON para POST según documentación oficial
-            Map<String, Object> requestBody = new HashMap<>();
+            logger.info("📦 Response Body: {}", result.toPrettyString());
             
-            // Ubicación de inicio (aeropuerto)
-            Map<String, String> startLocation = new HashMap<>();
-            startLocation.put("locationCode", airportCode.trim());
-            requestBody.put("startLocationCode", airportCode.trim());
-            
-            // Ubicación de fin (ciudad/hotel)
-            Map<String, String> endAddress = new HashMap<>();
-            endAddress.put("line", cityName.trim());
-            endAddress.put("countryCode", countryCode.trim().toUpperCase());
-            requestBody.put("endAddressLine", cityName.trim());
-            requestBody.put("endCountryCode", countryCode.trim().toUpperCase());
-            
-            // Tipo de transfer
-            requestBody.put("transferType", "PRIVATE");
-            
-            // Fecha y hora
-            requestBody.put("startDateTime", dateTime.trim());
-            
-            // Pasajeros
-            requestBody.put("passengers", passengers);
-            
-            logger.info("📦 Request Body: {}", gson.toJson(requestBody));
-            
-            // Headers
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Authorization", "Bearer " + token);
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("Accept", "application/vnd.amadeus+json");
-            
-            // ✅ USAR POST, NO GET
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-            
-            logger.info("📡 POST Request to: {}", AMADEUS_TRANSFER_URL);
-            
-            ResponseEntity<JsonNode> response = restTemplate.exchange(
-                AMADEUS_TRANSFER_URL, 
-                HttpMethod.POST,  // ✅ POST
-                entity, 
-                JsonNode.class
-            );
-            
-            logger.info("📥 Status Code: {}", response.getStatusCode());
-            
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                JsonNode result = response.getBody();
+            if (result.has("data")) {
+                JsonNode data = result.get("data");
+                List<TransferOffering> offerings = new ArrayList<>();
                 
-                logger.info("📦 Response Body: {}", result.toPrettyString());
-                
-                if (result.has("data")) {
-                    JsonNode data = result.get("data");
-                    List<TransferOffering> offerings = new ArrayList<>();
-                    
-                    if (data.isArray()) {
-                        for (JsonNode item : data) {
-                            try {
-                                TransferOffering offering = gson.fromJson(item.toString(), TransferOffering.class);
-                                offerings.add(offering);
-                            } catch (Exception e) {
-                                logger.warn("⚠️ Error parseando transfer: {}", e.getMessage());
-                            }
+                if (data.isArray()) {
+                    for (JsonNode item : data) {
+                        try {
+                            TransferOffering offering = gson.fromJson(item.toString(), TransferOffering.class);
+                            offerings.add(offering);
+                        } catch (Exception e) {
+                            logger.warn("⚠️ Error parseando transfer: {}", e.getMessage());
                         }
                     }
-                    
-                    logger.info("✅ Encontrados {} transfers", offerings.size());
-                    return offerings.toArray(new TransferOffering[0]);
                 }
                 
-                // Si no hay data pero hay warnings
-                if (result.has("warnings")) {
-                    logger.warn("⚠️ Warnings: {}", result.get("warnings").toString());
-                }
-                
-                if (result.has("meta")) {
-                    logger.info("ℹ️ Meta info: {}", result.get("meta").toString());
-                }
+                logger.info("✅ Encontrados {} transfers", offerings.size());
+                return offerings.toArray(new TransferOffering[0]);
             }
             
-            logger.warn("⚠️ No se encontraron transfers - Status: {}", response.getStatusCode());
-            return new TransferOffering[0];
-            
-        } catch (org.springframework.web.client.HttpClientErrorException e) {
-            logger.error("❌ Error HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
-            
-            // Parsear el error de Amadeus
-            try {
-                JsonNode errorResponse = objectMapper.readTree(e.getResponseBodyAsString());
-                if (errorResponse.has("errors")) {
-                    JsonNode errors = errorResponse.get("errors");
-                    for (JsonNode error : errors) {
-                        int code = error.has("code") ? error.get("code").asInt() : 0;
-                        String title = error.has("title") ? error.get("title").asText() : "N/A";
-                        String detail = error.has("detail") ? error.get("detail").asText() : "N/A";
-                        
-                        logger.error("❌ Amadeus Error {}: {} - {}", code, title, detail);
-                    }
-                }
-            } catch (Exception parseError) {
-                logger.error("Error parsing Amadeus error response", parseError);
+            if (result.has("warnings")) {
+                logger.warn("⚠️ Warnings: {}", result.get("warnings").toString());
             }
-            
-            throw new RuntimeException("Error en Amadeus Transfer API: " + e.getStatusCode() + " - " + e.getMessage(), e);
-            
-        } catch (Exception e) {
-            logger.error("❌ Error inesperado en búsqueda de transfers: {}", e.getMessage(), e);
-            throw new RuntimeException("Error al buscar transfers: " + e.getMessage(), e);
         }
+        
+        logger.warn("⚠️ No se encontraron transfers - Status: {}", response.getStatusCode());
+        return new TransferOffering[0];
+        
+    } catch (org.springframework.web.client.HttpClientErrorException e) {
+        logger.error("❌ Error HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
+        
+        try {
+            JsonNode errorResponse = objectMapper.readTree(e.getResponseBodyAsString());
+            if (errorResponse.has("errors")) {
+                JsonNode errors = errorResponse.get("errors");
+                for (JsonNode error : errors) {
+                    int code = error.has("code") ? error.get("code").asInt() : 0;
+                    String title = error.has("title") ? error.get("title").asText() : "N/A";
+                    String detail = error.has("detail") ? error.get("detail").asText() : "N/A";
+                    logger.error("❌ Amadeus Error {}: {} - {}", code, title, detail);
+                }
+            }
+        } catch (Exception parseError) {
+            logger.error("Error parsing error response", parseError);
+        }
+        
+        throw new RuntimeException("Error en Amadeus Transfer API: " + e.getMessage(), e);
+        
+    } catch (Exception e) {
+        logger.error("❌ Error inesperado: {}", e.getMessage(), e);
+        throw new RuntimeException("Error al buscar transfers: " + e.getMessage(), e);
     }
+}
+
+/**
+ * Obtener coordenadas GPS de ciudades conocidas
+ */
+private double[] getCityCoordinates(String cityName, String countryCode) {
+    Map<String, double[]> cityCoords = new HashMap<>();
+    
+    // Europa
+    cityCoords.put("Athens_GR", new double[]{37.9838, 23.7275});
+    cityCoords.put("Madrid_ES", new double[]{40.4168, -3.7038});
+    cityCoords.put("Barcelona_ES", new double[]{41.3851, 2.1734});
+    cityCoords.put("Paris_FR", new double[]{48.8566, 2.3522});
+    cityCoords.put("London_GB", new double[]{51.5074, -0.1278});
+    cityCoords.put("Rome_IT", new double[]{41.9028, 12.4964});
+    cityCoords.put("Berlin_DE", new double[]{52.5200, 13.4050});
+    cityCoords.put("Amsterdam_NL", new double[]{52.3676, 4.9041});
+    cityCoords.put("Lisbon_PT", new double[]{38.7223, -9.1393});
+    cityCoords.put("Vienna_AT", new double[]{48.2082, 16.3738});
+    
+    // América
+    cityCoords.put("New York_US", new double[]{40.7128, -74.0060});
+    cityCoords.put("Los Angeles_US", new double[]{34.0522, -118.2437});
+    cityCoords.put("Miami_US", new double[]{25.7617, -80.1918});
+    cityCoords.put("Chicago_US", new double[]{41.8781, -87.6298});
+    cityCoords.put("San Francisco_US", new double[]{37.7749, -122.4194});
+    
+    // Latinoamérica
+    cityCoords.put("Bogota_CO", new double[]{4.7110, -74.0721});
+    cityCoords.put("Mexico City_MX", new double[]{19.4326, -99.1332});
+    cityCoords.put("Buenos Aires_AR", new double[]{-34.6037, -58.3816});
+    cityCoords.put("Lima_PE", new double[]{-12.0464, -77.0428});
+    cityCoords.put("Santiago_CL", new double[]{-33.4489, -70.6693});
+    
+    String key = cityName + "_" + countryCode;
+    double[] coords = cityCoords.get(key);
+    
+    if (coords != null) {
+        logger.info("📍 Coordenadas encontradas para {}: [{}, {}]", cityName, coords[0], coords[1]);
+        return coords;
+    }
+    
+    logger.warn("⚠️ Coordenadas no encontradas para {} ({}), usando París por defecto", cityName, countryCode);
+    return new double[]{48.8566, 2.3522}; // París como fallback
+}
+    
 }
