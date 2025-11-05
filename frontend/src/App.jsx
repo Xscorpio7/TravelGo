@@ -8,6 +8,7 @@ import LoginAdmin from './pages/admin/LoginAdmin.jsx';
 import Dashboard from './pages/admin/Dashboard.jsx';
 import Error404 from './pages/public/Error404.jsx'
 import UserProfile from './pages/public/UserProfile.jsx';
+import BookingFlow from './pages/user/BookingFlow.jsx';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
       <Route path="/admin/login" element={<LoginAdmin />} />
       <Route path="/admin/dashboard" element={<Dashboard />} />
       <Route path="/UserProfile" element={<UserProfile/>} />
+      <Route path="/booking" element={<BookingFlow />} />
       <Route path="*" element={<Error404/>}/>
       
      
