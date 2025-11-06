@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { bookingStorage } from "../../utils/bookingStorage";
 
 const API_URL = "http://localhost:9090/api/auth/login";
 
@@ -12,20 +13,39 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
+  // **NUEVO: Verificar si hay reserva pendiente**
+  const [hasPendingBooking, setHasPendingBooking] = useState(false);
+
+  useEffect(() => {
+    // Verificar si hay reserva pendiente
+    const pendingBooking = bookingStorage.hasPendingBooking();
+    setHasPendingBooking(pendingBooking);
+    
+    if (pendingBooking) {
+      const summary = bookingStorage.getSummary();
+      console.log('📋 Reserva pendiente detectada:', summary);
+    }
+
+    // Cargar correo guardado si existe
+    const correoGuardado = localStorage.getItem("correoGuardado");
+    if (correoGuardado) {
+      setCorreo(correoGuardado);
+      setRemember(true);
+    }
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
-      // Validar que los campos no estén vacíos
       if (!correo || !contrasena) {
         setError("Por favor completa todos los campos");
         setLoading(false);
         return;
       }
 
-      // Realizar petición de login
       const response = await fetch(API_URL, {
         method: "POST",
         headers: {
@@ -53,15 +73,22 @@ export default function Login() {
       localStorage.setItem("primerApellido", data.primerApellido);
       localStorage.setItem("tipoUsuario", data.tipoUsuario);
 
-      // Si marcó "Recuérdame", guardar credenciales (opcional - solo correo)
       if (remember) {
         localStorage.setItem("correoGuardado", correo);
       }
 
-      console.log("Sesión iniciada correctamente");
+      console.log("✅ Sesión iniciada correctamente");
       
-      // Redirigir al home
-      navigate("/");
+      // **IMPORTANTE: Verificar si hay reserva pendiente**
+      if (bookingStorage.hasPendingBooking()) {
+        console.log('🎫 Continuando con la reserva pendiente...');
+        // Redirigir a BookingFlow - el componente se encargará de recuperar los datos
+        navigate("/booking");
+      } else {
+        console.log('🏠 No hay reserva pendiente, redirigiendo al home');
+        // Redirigir al home
+        navigate("/");
+      }
       
     } catch (err) {
       console.error("Error:", err);
@@ -70,15 +97,6 @@ export default function Login() {
       setLoading(false);
     }
   };
-
-  // Cargar correo guardado si existe
-  React.useEffect(() => {
-    const correoGuardado = localStorage.getItem("correoGuardado");
-    if (correoGuardado) {
-      setCorreo(correoGuardado);
-      setRemember(true);
-    }
-  }, []);
 
   return (
     <div className="h-screen bg-gradient-to-br from-[#391e37] to-[#b97cb9] dark:bg-cosmic-dark dark:text-light">
@@ -89,6 +107,27 @@ export default function Login() {
             <span className="text-[#b97cb9]">Travel</span> Go
           </h1>
         </div>
+
+        {/* **NUEVO: Banner de reserva pendiente** */}
+        {hasPendingBooking && (
+          <div className="w-full max-w-md mb-4 bg-blue-50 border-2 border-blue-400 rounded-lg p-4">
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0">
+                <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-blue-800">
+                  🎫 Tienes una reserva en progreso
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Inicia sesión para continuar con tu reserva
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="w-full max-w-md bg-white dark:bg-astronaut-light rounded-xl shadow-lg p-8 md:p-10">
           <h2 className="text-2xl font-bold text-center text-[#361c34] dark:text-[#391e37] mb-8">
@@ -195,7 +234,9 @@ export default function Login() {
                   Iniciando sesión...
                 </span>
               ) : (
-                "Iniciar sesión"
+                <span>
+                  {hasPendingBooking ? '🎫 Iniciar sesión y continuar reserva' : 'Iniciar sesión'}
+                </span>
               )}
             </button>
 
@@ -215,7 +256,16 @@ export default function Login() {
 
           {/* Botón volver */}
           <button
-            onClick={() => navigate("/")}
+            onClick={() => {
+              // Si hay reserva pendiente, preguntar antes de salir
+              if (hasPendingBooking) {
+                const confirmExit = window.confirm(
+                  '¿Estás seguro? Tu reserva en progreso se guardará por 30 minutos.'
+                );
+                if (!confirmExit) return;
+              }
+              navigate("/");
+            }}
             className="w-full bg-[#ca9bcb] hover:bg-[#a35f9f] dark:bg-flamepea dark:hover:bg-flamepea-dark text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300 mt-6"
           >
             Volver

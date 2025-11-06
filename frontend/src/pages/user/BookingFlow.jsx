@@ -4,9 +4,12 @@ import BookingWizard from '../../components/booking/BookingWizard';
 import FlightCard from '../../components/booking/FlightCard';
 import HotelCard from '../../components/booking/HotelCard';
 import TransportCard from '../../components/booking/TransportCard';
+import BookingSummary from '../../components/booking/BookingSummary';
+import PaymentForm from '../../components/booking/PaymentForm';
 import LoginModal from '../../components/user/LoginModal';
 import { useAuth } from '../../hooks/useAuth';
-import { AlertCircle, CheckCircle, Loader } from 'lucide-react';
+import { AlertCircle, CheckCircle, Loader, CheckCircle2 } from 'lucide-react';
+import { bookingStorage } from '../../utils/bookingStorage';
 
 export default function BookingFlow() {
   const navigate = useNavigate();
@@ -19,17 +22,17 @@ export default function BookingFlow() {
   const [success, setSuccess] = useState('');
 
   // Datos de reserva
-  const [selectedFlight, setSelectedFlight] = useState(location.state?.flight || null);
+  const [selectedFlight, setSelectedFlight] = useState(null);
   const [selectedHotel, setSelectedHotel] = useState(null);
   const [selectedTransport, setSelectedTransport] = useState(null);
 
   // Datos para búsqueda
   const [searchData, setSearchData] = useState({
-    origin: location.state?.origin || '',
-    destination: location.state?.destination || '',
-    departureDate: location.state?.departureDate || '',
-    returnDate: location.state?.returnDate || '',
-    adults: location.state?.adults || 1,
+    origin: '',
+    destination: '',
+    departureDate: '',
+    returnDate: '',
+    adults: 1,
   });
 
   // Opciones disponibles
@@ -39,19 +42,59 @@ export default function BookingFlow() {
   // Modal de login
   const [showLoginModal, setShowLoginModal] = useState(false);
 
-  // Verificar autenticación al cargar
+  // **NUEVO: Recuperar datos de reserva al cargar**
   useEffect(() => {
-    if (!isAuthenticated) {
+    console.log('🔄 Verificando datos de reserva pendientes...');
+    
+    // 1. Intentar cargar desde location.state (navegación directa)
+    if (location.state?.selectedFlight) {
+      console.log('📍 Cargando desde location.state');
+      setSelectedFlight(location.state.selectedFlight);
+      setSelectedHotel(location.state.selectedHotel || null);
+      setSelectedTransport(location.state.selectedTransport || null);
+      setSearchData(location.state.searchData || searchData);
+      setCurrentStep(location.state.currentStep || 1);
+      return;
+    }
+
+    // 2. Intentar cargar desde localStorage (después de login/registro)
+    const savedBooking = bookingStorage.get();
+    if (savedBooking) {
+      console.log('💾 Recuperando reserva guardada:', savedBooking);
+      setSelectedFlight(savedBooking.selectedFlight);
+      setSelectedHotel(savedBooking.selectedHotel || null);
+      setSelectedTransport(savedBooking.selectedTransport || null);
+      setSearchData(savedBooking.searchData);
+      setCurrentStep(savedBooking.currentStep || 1);
+      
+      // **IMPORTANTE: Limpiar después de recuperar**
+      bookingStorage.clear();
+      return;
+    }
+
+    // 3. Si no hay datos, redirigir al home
+    console.log('❌ No hay datos de reserva, redirigiendo...');
+    navigate('/');
+  }, [location.state, navigate]);
+
+  // Verificar autenticación y mostrar modal si es necesario
+  useEffect(() => {
+    if (!isAuthenticated && selectedFlight) {
+      console.log('🔐 Usuario no autenticado, guardando progreso...');
+      
+      // Guardar el progreso actual antes de mostrar el modal
+      const currentBookingData = {
+        selectedFlight,
+        selectedHotel,
+        selectedTransport,
+        searchData,
+        currentStep,
+      };
+      
+      bookingStorage.save(currentBookingData);
       setShowLoginModal(true);
     }
-  }, [isAuthenticated]);
-
-  // Verificar que tengamos un vuelo seleccionado
-  useEffect(() => {
-    if (!selectedFlight) {
-      navigate('/');
-    }
-  }, [selectedFlight, navigate]);
+  }, [isAuthenticated, selectedFlight, selectedHotel, selectedTransport, searchData, currentStep]);
 
   // Función para buscar hoteles
   const searchHotels = async () => {
@@ -95,7 +138,7 @@ export default function BookingFlow() {
         `http://localhost:9090/api/transporte/search-transfers?` +
           `airportCode=${searchData.destination}&` +
           `cityName=${searchData.destination}&` +
-          `countryCode=ES&` + // Ajustar según país
+          `countryCode=ES&` +
           `dateTime=${searchData.departureDate}T10:00:00&` +
           `passengers=${searchData.adults}`,
         {
@@ -120,12 +163,12 @@ export default function BookingFlow() {
 
   // Cargar datos según el paso actual
   useEffect(() => {
-    if (currentStep === 2 && hotels.length === 0) {
+    if (currentStep === 2 && hotels.length === 0 && isAuthenticated) {
       searchHotels();
-    } else if (currentStep === 3 && transports.length === 0) {
+    } else if (currentStep === 3 && transports.length === 0 && isAuthenticated) {
       searchTransports();
     }
-  }, [currentStep]);
+  }, [currentStep, isAuthenticated]);
 
   // Guardar vuelo en BD
   const saveFlightBooking = async () => {
@@ -163,6 +206,17 @@ export default function BookingFlow() {
       console.log('Vuelo guardado:', data);
       setSuccess('¡Vuelo reservado exitosamente!');
 
+      // Actualizar progreso en localStorage por si cambia de página
+      const updatedBooking = {
+        selectedFlight,
+        selectedHotel,
+        selectedTransport,
+        searchData,
+        currentStep: 2,
+        viajeId: data.viajeId, // Guardar ID del viaje
+      };
+      bookingStorage.save(updatedBooking);
+
       // Avanzar al siguiente paso después de 1.5 segundos
       setTimeout(() => {
         setSuccess('');
@@ -179,13 +233,28 @@ export default function BookingFlow() {
   // Manejar siguiente paso
   const handleNext = () => {
     if (currentStep === 1) {
-      // Guardar vuelo y avanzar
       saveFlightBooking();
     } else if (currentStep === 2) {
-      // Ir a transporte
+      // Actualizar progreso
+      const updatedBooking = {
+        selectedFlight,
+        selectedHotel,
+        selectedTransport,
+        searchData,
+        currentStep: 3,
+      };
+      bookingStorage.save(updatedBooking);
       setCurrentStep(3);
     } else if (currentStep === 3) {
-      // Ir a pago
+      // Actualizar progreso
+      const updatedBooking = {
+        selectedFlight,
+        selectedHotel,
+        selectedTransport,
+        searchData,
+        currentStep: 4,
+      };
+      bookingStorage.save(updatedBooking);
       setCurrentStep(4);
     }
   };
@@ -194,9 +263,25 @@ export default function BookingFlow() {
   const handleSkip = () => {
     if (currentStep === 2) {
       setSelectedHotel(null);
+      const updatedBooking = {
+        selectedFlight,
+        selectedHotel: null,
+        selectedTransport,
+        searchData,
+        currentStep: 3,
+      };
+      bookingStorage.save(updatedBooking);
       setCurrentStep(3);
     } else if (currentStep === 3) {
       setSelectedTransport(null);
+      const updatedBooking = {
+        selectedFlight,
+        selectedHotel,
+        selectedTransport: null,
+        searchData,
+        currentStep: 4,
+      };
+      bookingStorage.save(updatedBooking);
       setCurrentStep(4);
     }
   };
@@ -240,7 +325,10 @@ export default function BookingFlow() {
 
             <div className="flex justify-end space-x-4">
               <button
-                onClick={() => navigate('/')}
+                onClick={() => {
+                  bookingStorage.clear();
+                  navigate('/');
+                }}
                 className="px-6 py-3 rounded-lg font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 transition-colors"
               >
                 Cancelar
@@ -364,7 +452,16 @@ export default function BookingFlow() {
         );
 
       case 4:
-        return <PaymentStep />;
+        return (
+          <PaymentStep
+            selectedFlight={selectedFlight}
+            selectedHotel={selectedHotel}
+            selectedTransport={selectedTransport}
+            searchData={searchData}
+            user={user}
+            getAuthHeader={getAuthHeader}
+          />
+        );
 
       default:
         return null;
@@ -377,7 +474,7 @@ export default function BookingFlow() {
         isOpen={showLoginModal}
         onClose={() => {
           setShowLoginModal(false);
-          navigate('/');
+          // NO redirigir automáticamente, el usuario decidirá
         }}
         flight={selectedFlight}
       />
@@ -395,7 +492,7 @@ export default function BookingFlow() {
   );
 }
 
-// Componente temporal para el paso de pago (continuará en la siguiente parte)
+// Componente de paso de pago
 function PaymentStep({ 
   selectedFlight, 
   selectedHotel, 
@@ -413,10 +510,9 @@ function PaymentStep({
     setLoading(true);
 
     try {
-      // 1. Crear la reserva completa en el backend
       const reservaPayload = {
         usuarioId: user.usuarioId,
-        viajeId: null, // Se asignará después de guardar el viaje
+        viajeId: null,
         alojamientoId: selectedHotel?.id || null,
         transporteId: selectedTransport?.id || null,
         paymentData: paymentData,
@@ -437,14 +533,12 @@ function PaymentStep({
       const data = await response.json();
       setReservationData(data);
 
-      // 2. Simular procesamiento de pago (3 segundos)
       await new Promise(resolve => setTimeout(resolve, 3000));
 
-      // 3. Mostrar éxito
       setPaymentSuccess(true);
 
-      // 4. Enviar email y generar PDF (el backend lo hace automáticamente)
-      // El endpoint /api/bookings/complete ya se encarga de esto
+      // **IMPORTANTE: Limpiar localStorage después de completar**
+      bookingStorage.clear();
 
     } catch (error) {
       console.error('Error:', error);
