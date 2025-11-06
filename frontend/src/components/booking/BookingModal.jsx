@@ -1,6 +1,6 @@
 import { X, Lock, UserPlus, Plane, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { bookingStorage } from '../../utils/Bookingstorage';
+import { bookingStorage } from '../../utils/bookingStorage';
 
 export default function BookingModal({ isOpen, onClose, bookingData }) {
   const navigate = useNavigate();
@@ -8,28 +8,37 @@ export default function BookingModal({ isOpen, onClose, bookingData }) {
   if (!isOpen) return null;
 
   const handleLogin = () => {
-    // Guardar datos antes de navegar
+    // ✅ IMPORTANTE: Guardar TODA la información antes de navegar
     if (bookingData) {
-      bookingStorage.save(bookingData);
-      console.log('💾 Reserva guardada antes de login');
+      const success = bookingStorage.save(bookingData);
+      if (success) {
+        console.log('💾 Reserva guardada completa antes de login:', bookingData);
+      } else {
+        console.error('❌ Error al guardar reserva antes de login');
+      }
     }
     onClose();
-    navigate('/login');
+    navigate('/login', { state: { from: 'booking' } }); // ✅ Indicar origen
   };
 
   const handleRegister = () => {
-    // Guardar datos antes de navegar
+    // ✅ IMPORTANTE: Guardar TODA la información antes de navegar
     if (bookingData) {
-      bookingStorage.save(bookingData);
-      console.log('💾 Reserva guardada antes de registro');
+      const success = bookingStorage.save(bookingData);
+      if (success) {
+        console.log('💾 Reserva guardada completa antes de registro:', bookingData);
+      } else {
+        console.error('❌ Error al guardar reserva antes de registro');
+      }
     }
     onClose();
-    navigate('/register');
+    navigate('/register', { state: { from: 'booking' } }); // ✅ Indicar origen
   };
 
   const summary = bookingData ? {
     origin: bookingData.searchData?.origin || 'N/A',
     destination: bookingData.searchData?.destination || 'N/A',
+    departureDate: bookingData.searchData?.departureDate || 'N/A',
     price: bookingData.selectedFlight?.price?.total || 'N/A',
     currency: bookingData.selectedFlight?.price?.currency || 'USD',
   } : null;
@@ -79,10 +88,13 @@ export default function BookingModal({ isOpen, onClose, bookingData }) {
                     Vuelo seleccionado
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-2">
                   <div>
                     <p className="text-lg font-bold text-astronaut-dark">
                       {summary.origin} → {summary.destination}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {summary.departureDate}
                     </p>
                   </div>
                   <div className="text-right">

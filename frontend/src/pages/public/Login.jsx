@@ -16,7 +16,7 @@ export default function Login() {
   // **NUEVO: Verificar si hay reserva pendiente**
   const [hasPendingBooking, setHasPendingBooking] = useState(false);
   const [bookingSummary, setBookingSummary] = useState(null);
-
+  const [fromBooking, setFromBooking] = useState(false);
   useEffect(() => {
     // Verificar si hay reserva pendiente
     const pendingBooking = bookingStorage.hasPendingBooking();
@@ -25,7 +25,13 @@ export default function Login() {
     if (pendingBooking) {
       const summary = bookingStorage.getSummary();
       setBookingSummary(summary);
-      console.log('📋 Reserva pendiente detectada:', summary);
+      console.log('📋 Reserva pendiente detectada en login:', summary);
+    }
+
+    // ✅ Detectar si viene desde booking
+    if (location.state?.from === 'booking') {
+      setFromBooking(true);
+      console.log('🔄 Usuario viene desde flujo de reserva');
     }
 
     // Cargar correo guardado si existe
@@ -34,7 +40,7 @@ export default function Login() {
       setCorreo(correoGuardado);
       setRemember(true);
     }
-  }, []);
+  }, [location]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -87,13 +93,14 @@ export default function Login() {
 
       console.log("✅ Sesión iniciada correctamente");
       
-      // **IMPORTANTE: Verificar si hay reserva pendiente**
-      if (bookingStorage.hasPendingBooking()) {
-        console.log('🎫 Continuando con la reserva pendiente...');
-        // Pequeña pausa para que el usuario vea el éxito
-        setTimeout(() => {
-          navigate("/booking");
-        }, 500);
+      // ✅ CRÍTICO: Verificar si hay reserva pendiente o viene de booking
+      if (bookingStorage.hasPendingBooking() || fromBooking) {
+        console.log('🎫 Redirigiendo a booking con reserva pendiente...');
+        
+        // Pequeña pausa para asegurar que el localStorage está actualizado
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        navigate("/booking");
       } else {
         console.log('🏠 No hay reserva pendiente, redirigiendo al home');
         setTimeout(() => {

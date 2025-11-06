@@ -26,7 +26,7 @@ export default function Register() {
   const [bookingSummary, setBookingSummary] = useState(null);
 
   const navigate = useNavigate();
-
+  const [fromBooking, setFromBooking] = useState(false);
   useEffect(() => {
     // Verificar si hay reserva pendiente
     const pendingBooking = bookingStorage.hasPendingBooking();
@@ -37,10 +37,13 @@ export default function Register() {
       setBookingSummary(summary);
       console.log('📋 Reserva pendiente detectada en registro:', summary);
     }
-  }, []);
 
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
+    // ✅ Detectar si viene desde booking
+    if (location.state?.from === 'booking') {
+      setFromBooking(true);
+      console.log('🔄 Usuario viene desde flujo de reserva');
+    }
+  }, [location]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -87,8 +90,10 @@ export default function Register() {
       if (!loginResponse.ok) {
         // Si falla el login automático, redirigir a login manual
         console.log('⚠️ Login automático falló, redirigiendo a login manual');
+        
+        // ✅ Mantener la reserva guardada
         setTimeout(() => {
-          navigate("/login");
+          navigate("/login", { state: { from: 'booking' } });
         }, 1000);
         return;
       }
@@ -104,12 +109,13 @@ export default function Register() {
       localStorage.setItem("primerApellido", loginData.primerApellido);
       localStorage.setItem("tipoUsuario", loginData.tipoUsuario);
 
+      // ✅ CRÍTICO: Pequeña pausa para asegurar sincronización
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       // 4. Redirigir según si hay reserva pendiente
-      if (bookingStorage.hasPendingBooking()) {
+      if (bookingStorage.hasPendingBooking() || fromBooking) {
         console.log('🎫 Continuando con reserva pendiente...');
-        setTimeout(() => {
-          navigate("/booking");
-        }, 500);
+        navigate("/booking");
       } else {
         console.log('🏠 No hay reserva pendiente, redirigiendo al home');
         setTimeout(() => {

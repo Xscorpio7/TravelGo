@@ -17,7 +17,7 @@ export const bookingStorage = {
         expiresIn: 30 * 60 * 1000, // 30 minutos
       };
       localStorage.setItem(BOOKING_STORAGE_KEY, JSON.stringify(dataToSave));
-      console.log('✅ Datos de reserva guardados temporalmente');
+      console.log('✅ Datos de reserva guardados temporalmente:', dataToSave);
       return true;
     } catch (error) {
       console.error('❌ Error al guardar datos de reserva:', error);
@@ -31,7 +31,10 @@ export const bookingStorage = {
   get: () => {
     try {
       const stored = localStorage.getItem(BOOKING_STORAGE_KEY);
-      if (!stored) return null;
+      if (!stored) {
+        console.log('ℹ️ No hay datos de reserva almacenados');
+        return null;
+      }
 
       const data = JSON.parse(stored);
       
@@ -43,7 +46,7 @@ export const bookingStorage = {
         return null;
       }
 
-      console.log('✅ Datos de reserva recuperados');
+      console.log('✅ Datos de reserva recuperados:', data);
       return data;
     } catch (error) {
       console.error('❌ Error al recuperar datos de reserva:', error);
@@ -70,7 +73,9 @@ export const bookingStorage = {
    */
   hasPendingBooking: () => {
     const data = bookingStorage.get();
-    return data !== null;
+    const hasPending = data !== null && data.selectedFlight !== null;
+    console.log('🔍 ¿Tiene reserva pendiente?', hasPending);
+    return hasPending;
   },
 
   /**
@@ -78,15 +83,43 @@ export const bookingStorage = {
    */
   getSummary: () => {
     const data = bookingStorage.get();
-    if (!data) return null;
+    if (!data) {
+      console.log('ℹ️ No hay resumen disponible');
+      return null;
+    }
 
-    return {
-      hasFligh: !!data.selectedFlight,
+    const summary = {
+      hasFlight: !!data.selectedFlight, // ✅ CORREGIDO el typo
       hasHotel: !!data.selectedHotel,
       hasTransport: !!data.selectedTransport,
       currentStep: data.currentStep || 1,
       destination: data.searchData?.destination || 'N/A',
       origin: data.searchData?.origin || 'N/A',
+      departureDate: data.searchData?.departureDate || 'N/A',
+      returnDate: data.searchData?.returnDate || null,
+      adults: data.searchData?.adults || 1,
     };
+
+    console.log('📋 Resumen generado:', summary);
+    return summary;
+  },
+
+  /**
+   * Actualizar paso actual sin perder datos
+   */
+  updateStep: (newStep) => {
+    try {
+      const current = bookingStorage.get();
+      if (!current) return false;
+
+      current.currentStep = newStep;
+      current.timestamp = new Date().getTime(); // Renovar tiempo
+      localStorage.setItem(BOOKING_STORAGE_KEY, JSON.stringify(current));
+      console.log(`✅ Paso actualizado a: ${newStep}`);
+      return true;
+    } catch (error) {
+      console.error('❌ Error al actualizar paso:', error);
+      return false;
+    }
   },
 };
