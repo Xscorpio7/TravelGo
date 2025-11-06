@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaMapMarkedAlt } from "react-icons/fa";
+import { bookingStorage } from "../../utils/bookingStorage";
+import BookingModal from "../booking/BookingModal";
 
 function SearchCard() {
   const navigate = useNavigate();
@@ -16,6 +18,10 @@ function SearchCard() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  
+  // Modal de login
+  const [showModal, setShowModal] = useState(false);
+  const [pendingBooking, setPendingBooking] = useState(null);
 
   const handleChange = (e) => {
     setFormData({
@@ -32,7 +38,6 @@ function SearchCard() {
     try {
       console.log("Enviando datos:", formData);
       
-      // Construir parámetros de búsqueda
       const queryParams = new URLSearchParams({
         origin: formData.origin,
         destination: formData.destination,
@@ -41,7 +46,6 @@ function SearchCard() {
         max: 10
       });
       
-      // Agregar returnDate solo si existe y no está vacío
       if (formData.returnDate && formData.returnDate.trim() !== "") {
         queryParams.append('returnDate', formData.returnDate);
       }
@@ -53,7 +57,6 @@ function SearchCard() {
         }
       });
       
-      // Verificar si la respuesta es válida antes de parsear JSON
       let data;
       const contentType = response.headers.get("content-type");
       
@@ -95,25 +98,49 @@ function SearchCard() {
     }
   };
 
-  // Nueva función para manejar reserva
+  // ✅ FUNCIÓN MEJORADA para manejar reserva
   const handleReservation = (flight) => {
-    console.log("Iniciando reserva para vuelo:", flight);
+    console.log("🎫 Iniciando proceso de reserva para vuelo:", flight.id);
     
-    // Navegar a la página de booking con los datos del vuelo
-    navigate('/booking', {
-      state: {
-        flight: flight,
+    // Crear objeto completo de reserva
+    const bookingData = {
+      selectedFlight: flight,
+      searchData: {
         origin: formData.origin,
         destination: formData.destination,
         departureDate: formData.departureDate,
-        returnDate: formData.returnDate,
+        returnDate: formData.returnDate || null,
         adults: formData.adults,
-      }
-    });
+      },
+      currentStep: 1,
+      timestamp: new Date().toISOString(),
+    };
+    
+    // Verificar si el usuario está autenticado
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      // ❌ Usuario NO autenticado - Mostrar modal
+      console.log('🔐 Usuario no autenticado - Mostrando modal');
+      bookingStorage.save(bookingData);
+      setPendingBooking(bookingData);
+      setShowModal(true);
+    } else {
+      // ✅ Usuario autenticado - Continuar directo
+      console.log('✅ Usuario autenticado - Continuando con reserva');
+      navigate('/booking', { state: bookingData });
+    }
   };
 
   return (
     <div>
+      {/* Modal de Login */}
+      <BookingModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        bookingData={pendingBooking}
+      />
+
       {/* HERO SECTION */}
       <section className="relative h-[80vh] flex items-center justify-center text-white overflow-hidden">
         <div 
@@ -124,12 +151,12 @@ function SearchCard() {
           loading="lazy"
         />
         
-        <div className="absolute inset-0 animate-pulse" />
+        <div className="absolute inset-0 bg-gradient-to-r from-astronaut-dark/60 to-cosmic-dark/60" />
         
         <div className="relative z-10 container mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 animate-fade-in drop-shadow-lg">
             Descubre el mundo con{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-pink-300">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cosmic-light to-flame-light">
               Travel Go
             </span>
           </h1>
@@ -145,7 +172,10 @@ function SearchCard() {
           <h2 className="text-2xl font-bold text-astronaut-dark mb-6">Encuentra tu viaje perfecto</h2>
           
           {error && (
-            <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
+            <div className="mb-4 p-4 bg-red-100 border border-red-300 text-red-700 rounded-lg flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+              </svg>
               {error}
             </div>
           )}
@@ -234,15 +264,9 @@ function SearchCard() {
                   onChange={handleChange}
                   className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-base"
                 >
-                  <option value="1">1 persona</option>
-                  <option value="2">2 personas</option>
-                  <option value="3">3 personas</option>
-                  <option value="4">4 personas</option>
-                  <option value="5">5 personas</option>
-                  <option value="6">6 personas</option>
-                  <option value="7">7 personas</option>
-                  <option value="8">8 personas</option>
-                  <option value="9">9 personas</option>
+                  {[1,2,3,4,5,6,7,8,9].map(num => (
+                    <option key={num} value={num}>{num} persona{num > 1 ? 's' : ''}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -252,7 +276,7 @@ function SearchCard() {
               <button 
                 type="submit" 
                 disabled={loading}
-                className="btn-primary px-8 py-3 rounded-lg font-medium w-full md:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-primary px-8 py-3 rounded-lg font-medium w-full md:w-auto disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transform transition-all duration-300"
               >
                 <i className={`fas ${loading ? 'fa-spinner fa-spin' : 'fa-search'} mr-2`}></i>
                 {loading ? 'Buscando...' : 'Buscar vuelos'}
@@ -268,7 +292,6 @@ function SearchCard() {
           {results.length > 0 ? `${results.length} vuelos encontrados` : 'Resultados:'}
         </h3>
         
-        {/* LOADING STATE */}
         {loading && (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cosmic-base"></div>
@@ -276,7 +299,6 @@ function SearchCard() {
           </div>
         )}
         
-        {/* ERROR STATE */}
         {error && !loading && (
           <div className="p-6 bg-red-100 border border-red-300 text-red-700 rounded-lg flex items-start">
             <i className="fas fa-exclamation-circle text-2xl mr-3 mt-1"></i>
@@ -287,20 +309,18 @@ function SearchCard() {
           </div>
         )}
         
-        {/* RESULTS STATE */}
-        {results.length > 0 && !loading ? (
+        {results.length > 0 && !loading && (
           <div className="grid gap-6">
             {results.map((flight, index) => (
               <div 
                 key={flight.id || index} 
-                className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-6 border border-gray-200 hover:border-cosmic-base"
+                className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-6 border border-gray-200 hover:border-cosmic-base transform hover:scale-[1.02]"
               >
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                  {/* FLIGHT INFO */}
                   <div className="flex-1 w-full">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 bg-astronaut-light rounded-full flex items-center justify-center">
+                        <div className="w-12 h-12 bg-gradient-to-br from-astronaut-light to-cosmic-light rounded-full flex items-center justify-center">
                           <i className="fas fa-plane text-astronaut-base text-xl"></i>
                         </div>
                         <div>
@@ -316,9 +336,7 @@ function SearchCard() {
                       </div>
                     </div>
 
-                    {/* FLIGHT DETAILS GRID */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                      {/* DEPARTURE TIME */}
                       <div className="flex items-center space-x-2">
                         <i className="fas fa-calendar text-cosmic-base"></i>
                         <div>
@@ -336,7 +354,6 @@ function SearchCard() {
                         </div>
                       </div>
 
-                      {/* DURATION */}
                       <div className="flex items-center space-x-2">
                         <i className="fas fa-clock text-cosmic-base"></i>
                         <div>
@@ -349,7 +366,6 @@ function SearchCard() {
                         </div>
                       </div>
 
-                      {/* SEATS */}
                       <div className="flex items-center space-x-2">
                         <i className="fas fa-users text-cosmic-base"></i>
                         <div>
@@ -361,39 +377,8 @@ function SearchCard() {
                       </div>
                     </div>
 
-                    {/* SEGMENTS INFO */}
                     {flight.itineraries?.[0]?.segments && (
                       <div className="border-t pt-3">
-                        <h5 className="font-medium text-sm text-gray-700 mb-2">
-                          <i className="fas fa-info-circle text-cosmic-base mr-2"></i>
-                          Detalles del viaje:
-                        </h5>
-                        <div className="space-y-1">
-                          {flight.itineraries[0].segments.map((segment, segIndex) => (
-                            <div key={segIndex} className="text-sm text-gray-600 flex items-center">
-                              <span className="bg-astronaut-light text-astronaut-dark px-2 py-1 rounded font-medium mr-2">
-                                {segment.carrierCode} {segment.number}
-                              </span>
-                              <span>
-                                {segment.departure?.at 
-                                  ? new Date(segment.departure.at).toLocaleTimeString('es-ES', {
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })
-                                  : 'N/A'}
-                              </span>
-                              <i className="fas fa-long-arrow-alt-right mx-2 text-cosmic-base"></i>
-                              <span>
-                                {segment.arrival?.at 
-                                  ? new Date(segment.arrival.at).toLocaleTimeString('es-ES', {
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })
-                                  : 'N/A'}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
                         <p className="text-xs text-gray-500 mt-2">
                           {flight.itineraries[0].segments.length > 1 
                             ? `${flight.itineraries[0].segments.length - 1} escala(s)` 
@@ -403,7 +388,6 @@ function SearchCard() {
                     )}
                   </div>
 
-                  {/* PRICE & ACTION */}
                   <div className="flex flex-col items-end space-y-3 min-w-[200px] lg:min-w-[220px]">
                     <div className="text-right">
                       <p className="text-sm text-gray-500 mb-1">Precio total</p>
@@ -419,17 +403,16 @@ function SearchCard() {
 
                     <button
                       onClick={() => handleReservation(flight)}
-                      className="w-full bg-flame-base hover:bg-flame-dark text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
+                      className="w-full bg-gradient-to-r from-flame-base to-flame-dark hover:from-flame-dark hover:to-cosmic-dark text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
                     >
                       <i className="fas fa-ticket-alt"></i>
                       <span>Reservar Ahora</span>
                     </button>
 
-                    {/* ADDITIONAL INFO */}
                     {flight.numberOfBookableSeats && flight.numberOfBookableSeats <= 5 && (
                       <div className="w-full bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded text-center">
                         <i className="fas fa-exclamation-triangle mr-1"></i>
-                        ¡Solo {flight.numberOfBookableSeats} asientos disponibles!
+                        ¡Solo {flight.numberOfBookableSeats} asientos!
                       </div>
                     )}
                   </div>
@@ -437,7 +420,9 @@ function SearchCard() {
               </div>
             ))}
           </div>
-        ) : !loading && !error && (
+        )}
+
+        {!loading && !error && results.length === 0 && (
           <div className="text-center py-12 bg-gray-50 rounded-lg">
             <i className="fas fa-search text-6xl text-gray-300 mb-4"></i>
             <p className="text-gray-500 text-lg">
