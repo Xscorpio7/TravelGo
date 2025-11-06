@@ -41,7 +41,7 @@ export default function LoginModal({ isOpen, onClose, flight }) {
               <span className="font-semibold">Vuelo seleccionado:</span>
             </p>
             <p className="text-lg font-bold text-blue-600">
-              {flight.origin} → {flight.destination}
+              {flight.itineraries?.[0]?.segments?.[0]?.departure?.iataCode || 'N/A'} → {flight.itineraries?.[0]?.segments?.slice(-1)[0]?.arrival?.iataCode || 'N/A'}
             </p>
             <p className="text-sm text-gray-600 mt-1">
               {flight.price?.total} {flight.price?.currency}
@@ -53,8 +53,8 @@ export default function LoginModal({ isOpen, onClose, flight }) {
         <div className="space-y-3">
           <button
             onClick={() => {
-              navigate('/login');
               onClose();
+              navigate('/login');
             }}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200"
           >
@@ -63,8 +63,8 @@ export default function LoginModal({ isOpen, onClose, flight }) {
 
           <button
             onClick={() => {
-              navigate('/Register');
               onClose();
+              navigate('/register');
             }}
             className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-lg transition-colors duration-200"
           >
