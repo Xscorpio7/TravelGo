@@ -249,4 +249,15 @@ public ResponseEntity<Map<String, Object>> updateReserva(@PathVariable Integer i
             return ResponseEntity.internalServerError().body(error);
         }
     }
+    @GetMapping("/usuario/{usuarioId}")
+public ResponseEntity<?> getReservasByUsuario(@PathVariable Long usuarioId) {
+    try {
+        // Aquí debes implementar la lógica en tu servicio
+        List<Reserva> reservas = reservaService.findByUsuarioId(usuarioId);
+        return ResponseEntity.ok(reservas);
+    } catch (Exception e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Error al obtener reservas: " + e.getMessage()));
+    }
+}
 }
