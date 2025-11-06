@@ -29,5 +29,6 @@ public interface ReservaRepository extends JpaRepository<Reserva, Integer> {
     
     // Contar reservas por estado
     Long countByEstado(Reserva.Estado estado);
+    
     List<Reserva> findByUsuarioId(Long usuarioId);
 }

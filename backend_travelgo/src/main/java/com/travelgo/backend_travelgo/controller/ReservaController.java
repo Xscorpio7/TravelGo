@@ -2,6 +2,7 @@ package com.travelgo.backend_travelgo.controller;
 
 import com.travelgo.backend_travelgo.model.Reserva;
 import com.travelgo.backend_travelgo.repository.ReservaRepository;
+import com.travelgo.backend_travelgo.service.ReservaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/reservas")
@@ -21,6 +23,8 @@ public class ReservaController {
     
     @Autowired
     private ReservaRepository reservaRepository;
+    @Autowired  // ← Inyecta el servicio
+    private ReservaService reservaService;
     
     /**
      * Obtener todas las reservas
@@ -250,14 +254,13 @@ public ResponseEntity<Map<String, Object>> updateReserva(@PathVariable Integer i
         }
     }
     @GetMapping("/usuario/{usuarioId}")
-public ResponseEntity<?> getReservasByUsuario(@PathVariable Long usuarioId) {
-    try {
-        // Aquí debes implementar la lógica en tu servicio
-        List<Reserva> reservas = reservaService.findByUsuarioId(usuarioId);
-        return ResponseEntity.ok(reservas);
-    } catch (Exception e) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Error al obtener reservas: " + e.getMessage()));
+    public ResponseEntity<?> getReservasByUsuario(@PathVariable Long usuarioId) {
+        try {
+            List<Reserva> reservas = reservaService.findByUsuarioId(usuarioId);  // ← Usa la instancia
+            return ResponseEntity.ok(reservas);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Error al obtener reservas: " + e.getMessage()));
+        }
     }
-}
 }
