@@ -1,631 +1,583 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { bookingStorage } from '../../utils/bookingStorage';
+import BookingWizard from '../../components/booking/BookingWizard';
+import FlightCard from '../../components/booking/FlightCard';
+import HotelCard from '../../components/booking/HotelCard';
+import TransportCard from '../../components/booking/TransportCard';
+import BookingSummary from '../../components/booking/BookingSummary';
+import PaymentForm from '../../components/booking/PaymentForm';
 import {
-  User,
-  Mail,
-  Phone,
-  Calendar,
-  Globe,
-  Lock,
-  Edit2,
-  Save,
-  X,
-  LogOut,
-  Ticket,
-  Heart,
-  Settings,
+  Plane,
+  Hotel,
+  Car,
+  CreditCard,
+  ArrowLeft,
   AlertCircle,
   CheckCircle2,
-  Eye,
-  EyeOff,
+  Loader2,
+  Home,
 } from 'lucide-react';
 
-export default function UserProfile() {
+export default function BookingFlow() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('info');
+  const location = useLocation();
+
+  // Estados principales
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Usuario actual
-  const [user, setUser] = useState(null);
-  const [reservas, setReservas] = useState([]);
+  // Datos de reserva
+  const [searchData, setSearchData] = useState(null);
+  const [selectedFlight, setSelectedFlight] = useState(null);
+  const [selectedHotel, setSelectedHotel] = useState(null);
+  const [selectedTransport, setSelectedTransport] = useState(null);
 
-  // Modo edición
-  const [editMode, setEditMode] = useState(false);
-  const [editData, setEditData] = useState({});
+  // Listas de opciones
+  const [availableHotels, setAvailableHotels] = useState([]);
+  const [availableTransports, setAvailableTransports] = useState([]);
+  const [loadingHotels, setLoadingHotels] = useState(false);
+  const [loadingTransports, setLoadingTransports] = useState(false);
 
-  // Cambio de contraseña
-  const [passwordData, setPasswordData] = useState({
-    actual: '',
-    nueva: '',
-    confirmar: '',
-  });
-  const [showPasswords, setShowPasswords] = useState({
-    actual: false,
-    nueva: false,
-    confirmar: false,
-  });
-
-  // Cargar datos del usuario al montar
+  // ✅ Cargar datos al montar el componente
   useEffect(() => {
-    loadUserData();
-    loadReservas();
+    loadBookingData();
   }, []);
 
-  const loadUserData = async () => {
+  // ✅ Función principal para cargar datos de reserva
+  const loadBookingData = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const usuarioId = localStorage.getItem('usuarioId');
+      console.log('📥 Cargando datos de reserva...');
 
-      if (!token || !usuarioId) {
-        navigate('/login');
+      // Verificar autenticación
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('❌ No hay sesión activa, redirigiendo a login');
+        navigate('/login', { state: { from: 'booking' } });
         return;
       }
 
-      const response = await fetch(`http://localhost:9090/api/usuarios/${usuarioId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      // 1. Intentar obtener datos del location.state (prioridad)
+      if (location.state?.selectedFlight) {
+        console.log('✅ Datos recibidos desde location.state');
+        setSelectedFlight(location.state.selectedFlight);
+        setSearchData(location.state.searchData);
+        setCurrentStep(location.state.currentStep || 1);
+        
+        // Guardar en localStorage por seguridad
+        bookingStorage.save({
+          selectedFlight: location.state.selectedFlight,
+          searchData: location.state.searchData,
+          currentStep: location.state.currentStep || 1,
+        });
+      } 
+      // 2. Si no hay en location.state, buscar en localStorage
+      else {
+        const savedBooking = bookingStorage.get();
+        
+        if (!savedBooking) {
+          console.log('⚠️ No hay reserva pendiente');
+          setError('No se encontró una reserva pendiente. Por favor, realiza una nueva búsqueda.');
+          setTimeout(() => navigate('/'), 3000);
+          return;
+        }
 
-      if (!response.ok) throw new Error('Error al cargar datos');
+        console.log('✅ Datos recuperados desde localStorage:', savedBooking);
+        setSelectedFlight(savedBooking.selectedFlight);
+        setSelectedHotel(savedBooking.selectedHotel || null);
+        setSelectedTransport(savedBooking.selectedTransport || null);
+        setSearchData(savedBooking.searchData);
+        setCurrentStep(savedBooking.currentStep || 1);
+      }
 
-      const data = await response.json();
-      setUser(data);
-      setEditData({
-        primerNombre: data.primerNombre,
-        primerApellido: data.primerApellido,
-        telefono: data.telefono,
-        nacionalidad: data.nacionalidad,
-      });
+      setLoading(false);
     } catch (err) {
-      console.error('Error:', err);
-      setError('No se pudieron cargar los datos del usuario');
-    } finally {
+      console.error('❌ Error al cargar datos de reserva:', err);
+      setError('Error al cargar los datos de la reserva');
       setLoading(false);
     }
   };
 
-  const loadReservas = async () => {
+  // ✅ Cargar hoteles disponibles
+  const loadHotels = async () => {
+    if (!searchData?.destination) {
+      setError('No se puede buscar hoteles sin un destino');
+      return;
+    }
+
+    setLoadingHotels(true);
+    setError('');
+
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:9090/api/bookings/reservations', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `http://localhost:9090/hotels/search?cityCode=${searchData.destination}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
 
-      if (response.ok) {
-        const data = await response.json();
-        setReservas(data.data || []);
-      }
+      if (!response.ok) throw new Error('Error al buscar hoteles');
+
+      const data = await response.json();
+      setAvailableHotels(Array.isArray(data.data) ? data.data : []);
+      console.log('🏨 Hoteles cargados:', data.data?.length || 0);
     } catch (err) {
-      console.error('Error al cargar reservas:', err);
+      console.error('Error al cargar hoteles:', err);
+      setError('No se pudieron cargar los hoteles disponibles');
+      setAvailableHotels([]);
+    } finally {
+      setLoadingHotels(false);
     }
   };
 
-  const handleEdit = () => {
-    setEditMode(true);
+  // ✅ Cargar transportes disponibles
+  const loadTransports = async () => {
+    if (!searchData?.destination) {
+      setError('No se puede buscar transporte sin un destino');
+      return;
+    }
+
+    setLoadingTransports(true);
     setError('');
-    setSuccess('');
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `http://localhost:9090/transport/search?destination=${searchData.destination}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) throw new Error('Error al buscar transporte');
+
+      const data = await response.json();
+      setAvailableTransports(Array.isArray(data.data) ? data.data : []);
+      console.log('🚗 Transportes cargados:', data.data?.length || 0);
+    } catch (err) {
+      console.error('Error al cargar transportes:', err);
+      setError('No se pudieron cargar las opciones de transporte');
+      setAvailableTransports([]);
+    } finally {
+      setLoadingTransports(false);
+    }
   };
 
-  const handleCancel = () => {
-    setEditMode(false);
-    setEditData({
-      primerNombre: user.primerNombre,
-      primerApellido: user.primerApellido,
-      telefono: user.telefono,
-      nacionalidad: user.nacionalidad,
+  // ✅ Seleccionar hotel
+  const handleSelectHotel = (hotel) => {
+    console.log('🏨 Hotel seleccionado:', hotel);
+    setSelectedHotel(hotel);
+    
+    // Actualizar localStorage
+    const currentBooking = bookingStorage.get() || {};
+    bookingStorage.save({
+      ...currentBooking,
+      selectedHotel: hotel,
     });
+
+    setSuccess('✅ Hotel agregado a tu reserva');
+    setTimeout(() => setSuccess(''), 3000);
   };
 
-  const handleSave = async () => {
-    setSaving(true);
+  // ✅ Seleccionar transporte
+  const handleSelectTransport = (transport) => {
+    console.log('🚗 Transporte seleccionado:', transport);
+    setSelectedTransport(transport);
+    
+    // Actualizar localStorage
+    const currentBooking = bookingStorage.get() || {};
+    bookingStorage.save({
+      ...currentBooking,
+      selectedTransport: transport,
+    });
+
+    setSuccess('✅ Transporte agregado a tu reserva');
+    setTimeout(() => setSuccess(''), 3000);
+  };
+
+  // ✅ Remover hotel
+  const handleRemoveHotel = () => {
+    setSelectedHotel(null);
+    const currentBooking = bookingStorage.get() || {};
+    delete currentBooking.selectedHotel;
+    bookingStorage.save(currentBooking);
+  };
+
+  // ✅ Remover transporte
+  const handleRemoveTransport = () => {
+    setSelectedTransport(null);
+    const currentBooking = bookingStorage.get() || {};
+    delete currentBooking.selectedTransport;
+    bookingStorage.save(currentBooking);
+  };
+
+  // ✅ Ir al paso de pago
+  const handleProceedToPayment = () => {
+    if (!selectedFlight) {
+      setError('Debes seleccionar un vuelo para continuar');
+      return;
+    }
+
+    setCurrentStep(4);
+    bookingStorage.updateStep(4);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // ✅ Procesar pago
+  const handlePayment = async (paymentData) => {
+    setLoading(true);
     setError('');
-    setSuccess('');
 
     try {
       const token = localStorage.getItem('token');
       const usuarioId = localStorage.getItem('usuarioId');
 
-      const response = await fetch(`http://localhost:9090/api/usuarios/${usuarioId}`, {
-        method: 'PUT',
+      // Construir objeto de reserva
+      const reservaData = {
+        usuarioId: parseInt(usuarioId),
+        fechaReserva: new Date().toISOString(),
+        estado: 'pendiente',
+        // Datos del vuelo
+        viajeId: selectedFlight.id,
+        // Datos opcionales
+        alojamientoId: selectedHotel?.hotelId || null,
+        transporteId: selectedTransport?.id || null,
+        // Datos del pasajero y pago
+        pasajero: {
+          primerNombre: paymentData.primerNombre,
+          primerApellido: paymentData.primerApellido,
+          email: paymentData.email,
+          telefono: paymentData.telefono,
+          documento: paymentData.documento,
+        },
+        pago: {
+          metodoPago: paymentData.metodoPago,
+          monto: calculateTotal(),
+          moneda: selectedFlight.price?.currency || 'USD',
+          estado: 'pendiente',
+          // Datos específicos del método de pago
+          ...(paymentData.metodoPago === 'Tarjeta' && {
+            numeroTarjeta: paymentData.numeroTarjeta.slice(-4), // Solo últimos 4 dígitos
+            nombreTitular: paymentData.nombreTitular,
+          }),
+          ...(paymentData.metodoPago === 'PSE' && {
+            banco: paymentData.banco,
+            tipoPersona: paymentData.tipoPersona,
+          }),
+          ...(paymentData.metodoPago === 'Nequi' && {
+            numeroNequi: paymentData.numeroNequi,
+          }),
+        },
+      };
+
+      console.log('💳 Procesando reserva:', reservaData);
+
+      const response = await fetch('http://localhost:9090/api/reservas', {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...user,
-          ...editData,
-        }),
+        body: JSON.stringify(reservaData),
       });
 
-      if (!response.ok) throw new Error('Error al actualizar datos');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al procesar la reserva');
+      }
 
-      const updatedUser = await response.json();
-      setUser(updatedUser);
-      setEditMode(false);
-      setSuccess('✅ Información actualizada correctamente');
+      const result = await response.json();
+      console.log('✅ Reserva creada exitosamente:', result);
 
-      // Actualizar localStorage
-      localStorage.setItem('primerNombre', editData.primerNombre);
-      localStorage.setItem('primerApellido', editData.primerApellido);
+      // Limpiar datos temporales
+      bookingStorage.clear();
+
+      // Mostrar éxito y redirigir
+      setSuccess('🎉 ¡Reserva realizada exitosamente!');
+      
+      setTimeout(() => {
+        navigate('/UserProfile', { 
+          state: { 
+            showReservas: true,
+            newReservaId: result.id 
+          } 
+        });
+      }, 2000);
+
     } catch (err) {
-      console.error('Error:', err);
-      setError('❌ Error al actualizar la información');
-    } finally {
-      setSaving(false);
+      console.error('❌ Error al procesar pago:', err);
+      setError(`Error al procesar la reserva: ${err.message}`);
+      setLoading(false);
     }
   };
 
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
+  // ✅ Calcular total
+  const calculateTotal = () => {
+    let total = 0;
     
-    if (passwordData.nueva !== passwordData.confirmar) {
-      setError('Las contraseñas no coinciden');
-      return;
+    if (selectedFlight?.price?.total) {
+      total += parseFloat(selectedFlight.price.total);
     }
-
-    if (passwordData.nueva.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres');
-      return;
+    
+    if (selectedHotel?.price) {
+      total += parseFloat(selectedHotel.price);
     }
-
-    setSaving(true);
-    setError('');
-    setSuccess('');
-
-    try {
-      const credencialId = user.credencial.id;
-      const token = localStorage.getItem('token');
-
-      const response = await fetch(`http://localhost:9090/api/usuarios/cambiar-contrasena/${credencialId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          nuevaContrasena: passwordData.nueva,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Error al cambiar contraseña');
-
-      setSuccess('✅ Contraseña actualizada correctamente');
-      setPasswordData({ actual: '', nueva: '', confirmar: '' });
-    } catch (err) {
-      console.error('Error:', err);
-      setError('❌ Error al cambiar la contraseña');
-    } finally {
-      setSaving(false);
+    
+    if (selectedTransport?.precio) {
+      total += parseFloat(selectedTransport.precio);
     }
+    
+    return total.toFixed(2);
   };
 
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate('/');
-  };
-
+  // ✅ Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-astronaut-light to-cosmic-light flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-cosmic-base mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando perfil...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-astronaut-light to-cosmic-light flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <p className="text-gray-800 font-medium">No se pudo cargar el perfil</p>
-          <button
-            onClick={() => navigate('/')}
-            className="mt-4 px-6 py-2 bg-cosmic-base text-white rounded-lg hover:bg-cosmic-dark"
-          >
-            Volver al inicio
-          </button>
+          <Loader2 className="w-16 h-16 text-cosmic-base animate-spin mx-auto mb-4" />
+          <p className="text-gray-700 text-lg font-medium">Cargando tu reserva...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-astronaut-light to-cosmic-light py-8">
-      <div className="container mx-auto px-4 max-w-6xl">
-        {/* Header con avatar */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-            {/* Avatar */}
-            <div className="relative">
-              <div className="w-32 h-32 rounded-full bg-gradient-to-br from-cosmic-base to-astronaut-base flex items-center justify-center text-white text-4xl font-bold shadow-lg">
-                {user.primerNombre?.charAt(0)}{user.primerApellido?.charAt(0)}
-              </div>
-            </div>
-
-            {/* Info básica */}
-            <div className="flex-1 text-center md:text-left">
-              <h1 className="text-3xl font-bold text-astronaut-dark mb-2">
-                {user.primerNombre} {user.primerApellido}
-              </h1>
-              <p className="text-gray-600 flex items-center justify-center md:justify-start gap-2 mb-4">
-                <Mail className="w-4 h-4" />
-                {user.credencial?.correo}
-              </p>
-              <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-                <span className="px-4 py-2 bg-cosmic-light text-cosmic-dark rounded-full text-sm font-medium">
-                  {reservas.length} Reservas
-                </span>
-                <span className="px-4 py-2 bg-astronaut-light text-astronaut-dark rounded-full text-sm font-medium">
-                  Usuario desde {new Date().getFullYear()}
-                </span>
-              </div>
-            </div>
-
-            {/* Botón logout */}
+    <div className="min-h-screen bg-gradient-to-br from-astronaut-light to-cosmic-light">
+      {/* Header */}
+      <header className="bg-white shadow-sm sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
             <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+              onClick={() => navigate('/')}
+              className="flex items-center gap-2 text-cosmic-base hover:text-cosmic-dark transition-colors"
             >
-              <LogOut className="w-4 h-4" />
-              Cerrar sesión
+              <ArrowLeft className="w-5 h-5" />
+              <span className="font-medium">Volver al inicio</span>
+            </button>
+            <h1 className="text-xl md:text-2xl font-bold text-astronaut-dark">
+              Completa tu Reserva
+            </h1>
+            <button
+              onClick={() => navigate('/UserProfile')}
+              className="flex items-center gap-2 px-4 py-2 bg-cosmic-base text-white rounded-lg hover:bg-cosmic-dark transition-colors"
+            >
+              <Home className="w-5 h-5" />
+              <span className="hidden md:inline">Mi Perfil</span>
             </button>
           </div>
         </div>
+      </header>
 
-        {/* Tabs */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-          <div className="border-b border-gray-200">
-            <nav className="flex overflow-x-auto">
-              {[
-                { id: 'info', label: 'Información Personal', icon: User },
-                { id: 'reservas', label: 'Mis Reservas', icon: Ticket },
-                { id: 'security', label: 'Seguridad', icon: Lock },
-              ].map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => setActiveTab(id)}
-                  className={`flex items-center gap-2 px-6 py-4 font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    activeTab === id
-                      ? 'border-cosmic-base text-cosmic-base'
-                      : 'border-transparent text-gray-600 hover:text-cosmic-base'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  {label}
-                </button>
-              ))}
-            </nav>
+      {/* Wizard de progreso */}
+      <div className="container mx-auto px-4 pt-6">
+        <BookingWizard currentStep={currentStep} onStepChange={setCurrentStep} />
+      </div>
+
+      {/* Mensajes */}
+      <div className="container mx-auto px-4 mt-6">
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg flex items-start gap-3 mb-6 animate-fade-in">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-red-800 font-medium">{error}</p>
+            </div>
+            <button onClick={() => setError('')} className="text-red-500 hover:text-red-700">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
           </div>
+        )}
 
-          {/* Contenido de tabs */}
-          <div className="p-8">
-            {/* Mensajes */}
-            {error && (
-              <div className="mb-6 flex items-center gap-2 p-4 bg-red-100 text-red-700 rounded-lg">
-                <AlertCircle className="w-5 h-5" />
-                {error}
-              </div>
-            )}
+        {success && (
+          <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg flex items-start gap-3 mb-6 animate-fade-in">
+            <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-green-800 font-medium">{success}</p>
+            </div>
+            <button onClick={() => setSuccess('')} className="text-green-500 hover:text-green-700">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          </div>
+        )}
+      </div>
 
-            {success && (
-              <div className="mb-6 flex items-center gap-2 p-4 bg-green-100 text-green-700 rounded-lg">
-                <CheckCircle2 className="w-5 h-5" />
-                {success}
-              </div>
-            )}
-
-            {/* Tab: Información Personal */}
-            {activeTab === 'info' && (
-              <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-astronaut-dark">
-                    Información Personal
-                  </h2>
-                  {!editMode ? (
-                    <button
-                      onClick={handleEdit}
-                      className="flex items-center gap-2 px-4 py-2 bg-cosmic-base text-white rounded-lg hover:bg-cosmic-dark transition-colors"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                      Editar
-                    </button>
-                  ) : (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleCancel}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-                      >
-                        <X className="w-4 h-4" />
-                        Cancelar
-                      </button>
-                      <button
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="flex items-center gap-2 px-4 py-2 bg-flame-base text-white rounded-lg hover:bg-flame-dark transition-colors disabled:opacity-50"
-                      >
-                        <Save className="w-4 h-4" />
-                        {saving ? 'Guardando...' : 'Guardar'}
-                      </button>
-                    </div>
+      {/* Contenido principal */}
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Columna izquierda - Selección */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Paso 1-3: Selección de servicios */}
+            {currentStep < 4 && (
+              <>
+                {/* Vuelo seleccionado */}
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-astronaut-dark flex items-center gap-2">
+                      <Plane className="w-6 h-6 text-cosmic-base" />
+                      Tu Vuelo
+                    </h2>
+                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
+                      ✓ Seleccionado
+                    </span>
+                  </div>
+                  {selectedFlight && (
+                    <FlightCard
+                      flight={selectedFlight}
+                      onSelect={() => {}}
+                      isSelected={true}
+                    />
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Primer Nombre */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Primer Nombre
-                    </label>
-                    {editMode ? (
-                      <input
-                        type="text"
-                        value={editData.primerNombre}
-                        onChange={(e) => setEditData({ ...editData, primerNombre: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cosmic-base focus:border-transparent"
-                      />
-                    ) : (
-                      <p className="text-gray-900 font-medium">{user.primerNombre}</p>
-                    )}
-                  </div>
-
-                  {/* Primer Apellido */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Primer Apellido
-                    </label>
-                    {editMode ? (
-                      <input
-                        type="text"
-                        value={editData.primerApellido}
-                        onChange={(e) => setEditData({ ...editData, primerApellido: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cosmic-base focus:border-transparent"
-                      />
-                    ) : (
-                      <p className="text-gray-900 font-medium">{user.primerApellido}</p>
-                    )}
-                  </div>
-
-                  {/* Email (solo lectura) */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      <Mail className="w-4 h-4" />
-                      Email
-                    </label>
-                    <p className="text-gray-900 font-medium">{user.credencial?.correo}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Contacta soporte para cambiar tu email
-                    </p>
-                  </div>
-
-                  {/* Teléfono */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      <Phone className="w-4 h-4" />
-                      Teléfono
-                    </label>
-                    {editMode ? (
-                      <input
-                        type="tel"
-                        value={editData.telefono}
-                        onChange={(e) => setEditData({ ...editData, telefono: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cosmic-base focus:border-transparent"
-                      />
-                    ) : (
-                      <p className="text-gray-900 font-medium">{user.telefono}</p>
-                    )}
-                  </div>
-
-                  {/* Fecha Nacimiento */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      Fecha de Nacimiento
-                    </label>
-                    <p className="text-gray-900 font-medium">{user.fechaNacimiento}</p>
-                  </div>
-
-                  {/* Nacionalidad */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      <Globe className="w-4 h-4" />
-                      Nacionalidad
-                    </label>
-                    {editMode ? (
-                      <select
-                        value={editData.nacionalidad}
-                        onChange={(e) => setEditData({ ...editData, nacionalidad: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cosmic-base focus:border-transparent"
+                {/* Hotel (opcional) */}
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-astronaut-dark flex items-center gap-2">
+                      <Hotel className="w-6 h-6 text-cosmic-base" />
+                      Hotel
+                      <span className="text-sm font-normal text-gray-500">(Opcional)</span>
+                    </h2>
+                    {selectedHotel ? (
+                      <button
+                        onClick={handleRemoveHotel}
+                        className="text-red-600 hover:text-red-700 text-sm font-medium"
                       >
-                        <option value="Colombia">Colombia</option>
-                        <option value="Mexico">México</option>
-                        <option value="Argentina">Argentina</option>
-                        <option value="Peru">Perú</option>
-                      </select>
+                        Remover
+                      </button>
                     ) : (
-                      <p className="text-gray-900 font-medium">{user.nacionalidad}</p>
+                      <button
+                        onClick={loadHotels}
+                        disabled={loadingHotels}
+                        className="px-4 py-2 bg-cosmic-base text-white rounded-lg hover:bg-cosmic-dark transition-colors disabled:opacity-50"
+                      >
+                        {loadingHotels ? 'Buscando...' : 'Buscar Hoteles'}
+                      </button>
                     )}
                   </div>
 
-                  {/* Género */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Género
-                    </label>
-                    <p className="text-gray-900 font-medium">
-                      {user.genero === 'MALE' ? 'Masculino' : user.genero === 'FEMALE' ? 'Femenino' : 'Otro'}
+                  {selectedHotel ? (
+                    <HotelCard
+                      hotel={selectedHotel}
+                      onSelect={() => {}}
+                      isSelected={true}
+                    />
+                  ) : availableHotels.length > 0 ? (
+                    <div className="space-y-4 max-h-96 overflow-y-auto">
+                      {availableHotels.map((hotel, index) => (
+                        <HotelCard
+                          key={hotel.hotelId || index}
+                          hotel={hotel}
+                          onSelect={handleSelectHotel}
+                          isSelected={false}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-8">
+                      Haz clic en "Buscar Hoteles" para ver opciones disponibles
                     </p>
-                  </div>
+                  )}
                 </div>
-              </div>
-            )}
 
-            {/* Tab: Reservas */}
-            {activeTab === 'reservas' && (
-              <div>
-                <h2 className="text-2xl font-bold text-astronaut-dark mb-6">
-                  Mis Reservas
-                </h2>
-
-                {reservas.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Ticket className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-600 mb-4">No tienes reservas aún</p>
-                    <button
-                      onClick={() => navigate('/')}
-                      className="px-6 py-2 bg-cosmic-base text-white rounded-lg hover:bg-cosmic-dark"
-                    >
-                      Buscar vuelos
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {reservas.map((reserva) => (
-                      <div
-                        key={reserva.id}
-                        className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow"
-                      >
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <h3 className="font-bold text-lg text-astronaut-dark">
-                              Reserva #{reserva.id}
-                            </h3>
-                            <p className="text-sm text-gray-500">
-                              {new Date(reserva.fechaReserva).toLocaleDateString('es-ES')}
-                            </p>
-                          </div>
-                          <span
-                            className={`px-3 py-1 rounded-full text-sm font-medium ${
-                              reserva.estado === 'confirmada'
-                                ? 'bg-green-100 text-green-800'
-                                : reserva.estado === 'pendiente'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-red-100 text-red-800'
-                            }`}
-                          >
-                            {reserva.estado}
-                          </span>
-                        </div>
-                        <button
-                          className="text-cosmic-base hover:underline text-sm font-medium"
-                        >
-                          Ver detalles →
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Tab: Seguridad */}
-            {activeTab === 'security' && (
-              <div>
-                <h2 className="text-2xl font-bold text-astronaut-dark mb-6">
-                  Cambiar Contraseña
-                </h2>
-
-                <form onSubmit={handleChangePassword} className="max-w-md space-y-6">
-                  {/* Contraseña actual */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Contraseña Actual
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showPasswords.actual ? 'text' : 'password'}
-                        value={passwordData.actual}
-                        onChange={(e) => setPasswordData({ ...passwordData, actual: e.target.value })}
-                        required
-                        className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cosmic-base focus:border-transparent"
-                      />
+                {/* Transporte (opcional) */}
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-astronaut-dark flex items-center gap-2">
+                      <Car className="w-6 h-6 text-cosmic-base" />
+                      Transporte
+                      <span className="text-sm font-normal text-gray-500">(Opcional)</span>
+                    </h2>
+                    {selectedTransport ? (
                       <button
-                        type="button"
-                        onClick={() => setShowPasswords({ ...showPasswords, actual: !showPasswords.actual })}
-                        className="absolute right-3 top-2.5 text-gray-500"
+                        onClick={handleRemoveTransport}
+                        className="text-red-600 hover:text-red-700 text-sm font-medium"
                       >
-                        {showPasswords.actual ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        Remover
                       </button>
-                    </div>
-                  </div>
-
-                  {/* Nueva contraseña */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Nueva Contraseña
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showPasswords.nueva ? 'text' : 'password'}
-                        value={passwordData.nueva}
-                        onChange={(e) => setPasswordData({ ...passwordData, nueva: e.target.value })}
-                        required
-                        minLength={6}
-                        className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cosmic-base focus:border-transparent"
-                      />
+                    ) : (
                       <button
-                        type="button"
-                        onClick={() => setShowPasswords({ ...showPasswords, nueva: !showPasswords.nueva })}
-                        className="absolute right-3 top-2.5 text-gray-500"
+                        onClick={loadTransports}
+                        disabled={loadingTransports}
+                        className="px-4 py-2 bg-cosmic-base text-white rounded-lg hover:bg-cosmic-dark transition-colors disabled:opacity-50"
                       >
-                        {showPasswords.nueva ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        {loadingTransports ? 'Buscando...' : 'Buscar Transporte'}
                       </button>
-                    </div>
+                    )}
                   </div>
 
-                  {/* Confirmar contraseña */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Confirmar Nueva Contraseña
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showPasswords.confirmar ? 'text' : 'password'}
-                        value={passwordData.confirmar}
-                        onChange={(e) => setPasswordData({ ...passwordData, confirmar: e.target.value })}
-                        required
-                        minLength={6}
-                        className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cosmic-base focus:border-transparent"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPasswords({ ...showPasswords, confirmar: !showPasswords.confirmar })}
-                        className="absolute right-3 top-2.5 text-gray-500"
-                      >
-                        {showPasswords.confirmar ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
+                  {selectedTransport ? (
+                    <TransportCard
+                      transport={selectedTransport}
+                      onSelect={() => {}}
+                      isSelected={true}
+                    />
+                  ) : availableTransports.length > 0 ? (
+                    <div className="space-y-4 max-h-96 overflow-y-auto">
+                      {availableTransports.map((transport, index) => (
+                        <TransportCard
+                          key={transport.id || index}
+                          transport={transport}
+                          onSelect={handleSelectTransport}
+                          isSelected={false}
+                        />
+                      ))}
                     </div>
-                  </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-8">
+                      Haz clic en "Buscar Transporte" para ver opciones disponibles
+                    </p>
+                  )}
+                </div>
 
+                {/* Botón continuar al pago */}
+                <div className="bg-white rounded-xl shadow-lg p-6">
                   <button
-                    type="submit"
-                    disabled={saving}
-                    className="w-full bg-flame-base hover:bg-flame-dark text-white font-medium py-3 px-6 rounded-lg transition-colors disabled:opacity-50"
+                    onClick={handleProceedToPayment}
+                    className="w-full bg-gradient-to-r from-flame-base to-flame-dark hover:from-flame-dark hover:to-cosmic-dark text-white font-bold py-4 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
                   >
-                    {saving ? 'Cambiando...' : 'Cambiar Contraseña'}
+                    <CreditCard className="w-6 h-6" />
+                    Continuar al Pago
                   </button>
-                </form>
+                </div>
+              </>
+            )}
+
+            {/* Paso 4: Pago */}
+            {currentStep === 4 && (
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h2 className="text-2xl font-bold text-astronaut-dark mb-6 flex items-center gap-2">
+                  <CreditCard className="w-6 h-6 text-cosmic-base" />
+                  Información de Pago
+                </h2>
+                <PaymentForm onSubmit={handlePayment} loading={loading} />
+                
+                <button
+                  onClick={() => setCurrentStep(3)}
+                  className="mt-6 w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  Volver a Servicios
+                </button>
               </div>
             )}
           </div>
-        </div>
 
-        {/* Botón volver */}
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => navigate('/')}
-            className="text-cosmic-base hover:underline font-medium"
-          >
-            ← Volver al inicio
-          </button>
+          {/* Columna derecha - Resumen */}
+          <div className="lg:col-span-1">
+            <BookingSummary
+              flight={selectedFlight}
+              hotel={selectedHotel}
+              transport={selectedTransport}
+              searchData={searchData}
+            />
+          </div>
         </div>
       </div>
     </div>

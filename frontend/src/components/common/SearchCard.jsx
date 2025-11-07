@@ -104,17 +104,18 @@ function SearchCard() {
     
     // Crear objeto completo de reserva
     const bookingData = {
-      selectedFlight: flight,
-      searchData: {
-        origin: formData.origin,
-        destination: formData.destination,
-        departureDate: formData.departureDate,
-        returnDate: formData.returnDate || null,
-        adults: formData.adults,
-      },
-      currentStep: 1,
-      timestamp: new Date().toISOString(),
-    };
+    selectedFlight: flight,
+    searchData: {
+    origin: formData.origin,
+    destination: formData.destination,
+    departureDate: formData.departureDate,
+    returnDate: formData.returnDate || null,
+    adults: formData.adults,
+  },
+  currentStep: 1,
+  timestamp: new Date().toISOString(),
+};
+
     
     // Verificar si el usuario está autenticado
     const token = localStorage.getItem('token');
