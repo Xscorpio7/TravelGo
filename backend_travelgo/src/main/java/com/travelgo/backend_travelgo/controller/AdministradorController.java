@@ -7,6 +7,7 @@ package com.travelgo.backend_travelgo.controller;
 
 
 import com.travelgo.backend_travelgo.model.Administrador;
+import com.travelgo.backend_travelgo.model.Credencial;
 import com.travelgo.backend_travelgo.repository.AdministradorRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -48,4 +49,29 @@ public class AdministradorController {
         administradorRepository.deleteById(id);
         return ResponseEntity.ok().build();
     }
+    @PostMapping("/register-admin")
+@PreAuthorize("hasRole('ADMIN')")
+public ResponseEntity<?> registerAdmin(@RequestBody CreateAdminRequest request) {
+    if (credencialService.existsByCorreo(request.getCorreo())) {
+        return ResponseEntity.badRequest()
+            .body(Map.of("error", "Email ya registrado"));
+    }
+    
+    // Crear credencial
+    Credencial cred = new Credencial();
+    cred.setCorreo(request.getCorreo());
+    cred.setContrasena(passwordEncoder.encode(request.getContrasena()));
+    cred.setTipoUsuario(TipoUsuario.ADMIN);
+    cred.setEstaActivo(true);
+    credencialService.save(cred);
+    
+    // Crear administrador
+    Administrador admin = new Administrador();
+    admin.setCredencial(cred);
+    admin.setNombre(request.getNombre());
+    admin.setCargo(request.getCargo());
+    administradorService.save(admin);
+    
+    return ResponseEntity.ok(Map.of("message", "Administrador creado"));
+}
 }

@@ -26,29 +26,7 @@ public class ReservaController {
     @Autowired  // ← Inyecta el servicio
     private ReservaService reservaService;
     
-    /**
-     * Obtener todas las reservas
-     * GET /api/reservas
-     */
-    @GetMapping
-    public ResponseEntity<?> getAllReservas() {
-        try {
-            logger.info("Obteniendo todas las reservas");
-            List<Reserva> reservas = reservaRepository.findAll();
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("status", "SUCCESS");
-            response.put("data", reservas);
-            response.put("count", reservas.size());
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("Error al obtener reservas: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Error al obtener reservas: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(error);
-        }
-    }
+   
     
     /**
      * Obtener una reserva por ID
@@ -263,4 +241,9 @@ public ResponseEntity<Map<String, Object>> updateReserva(@PathVariable Integer i
                     .body(Map.of("error", "Error al obtener reservas: " + e.getMessage()));
         }
     }
+    @GetMapping
+@PreAuthorize("hasRole('ADMIN')")
+public ResponseEntity<List<Reserva>> getAllReservas() {
+    return ResponseEntity.ok(reservaService.findAll());
+}
 }

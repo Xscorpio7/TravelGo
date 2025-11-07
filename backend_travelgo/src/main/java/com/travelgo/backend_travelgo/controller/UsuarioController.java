@@ -106,4 +106,44 @@ public ResponseEntity<?> cambiarContrasena(@PathVariable int id, @RequestBody Ca
         usuarioRepository.deleteById(id);
         return ResponseEntity.ok().build();
     }
+    @GetMapping
+@PreAuthorize("hasRole('ADMIN')")
+public ResponseEntity<List<Usuario>> getAllUsuarios() {
+    return ResponseEntity.ok(usuarioService.findAll());
+}
+@PutMapping("/{id}/toggle-status")
+@PreAuthorize("hasRole('ADMIN')")
+public ResponseEntity<?> toggleUserStatus(@PathVariable Long id) {
+    Usuario usuario = usuarioService.findById(id)
+        .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+    
+    Credencial cred = usuario.getCredencial();
+    cred.setEstaActivo(!cred.getEstaActivo());
+    credencialService.save(cred);
+    
+    return ResponseEntity.ok(Map.of("message", "Estado actualizado"));
+}
+@PutMapping("/{id}/promote-to-admin")
+@PreAuthorize("hasRole('ADMIN')")
+public ResponseEntity<?> promoteToAdmin(@PathVariable Long id) {
+    Usuario usuario = usuarioService.findById(id)
+        .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+    
+    usuario.getCredencial().setTipoUsuario(TipoUsuario.ADMIN);
+    usuarioService.save(usuario);
+    
+    return ResponseEntity.ok(Map.of("message", "Usuario promovido"));
+}
+@PutMapping("/{id}/demote-to-user")
+@PreAuthorize("hasRole('ADMIN')")
+public ResponseEntity<?> demoteToUser(@PathVariable Long id) {
+    Usuario usuario = usuarioService.findById(id)
+        .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+    
+    usuario.getCredencial().setTipoUsuario(TipoUsuario.USUARIO);
+    usuarioService.save(usuario);
+    
+    return ResponseEntity.ok(Map.of("message", "Admin degradado"));
+}
+
 }
