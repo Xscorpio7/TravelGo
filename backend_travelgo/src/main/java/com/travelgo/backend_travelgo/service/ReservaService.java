@@ -6,13 +6,23 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.List;
 
-@Service  // ← Importante: marca la clase como servicio de Spring
+@Service
 public class ReservaService {
     
-    @Autowired  // ← Inyecta el repositorio
+    @Autowired
     private ReservaRepository reservaRepository;
     
+    /**
+     * Obtener todas las reservas (para admin)
+     */
+    public List<Reserva> findAll() {
+        return reservaRepository.findAll();
+    }
+    
+    /**
+     * Buscar reservas por ID de usuario
+     */
     public List<Reserva> findByUsuarioId(Long usuarioId) {
-        return reservaRepository.findByUsuarioId(usuarioId);  // ← Usa la instancia
+        return reservaRepository.findByUsuarioId(usuarioId);
     }
 }

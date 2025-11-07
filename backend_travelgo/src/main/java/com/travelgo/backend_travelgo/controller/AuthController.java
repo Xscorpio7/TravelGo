@@ -1,9 +1,4 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.travelgo.backend_travelgo.controller;
-
 
 import com.travelgo.backend_travelgo.dto.LoginRequest;
 import com.travelgo.backend_travelgo.dto.LoginResponse;
@@ -14,6 +9,7 @@ import com.travelgo.backend_travelgo.repository.UsuarioRepository;
 import com.travelgo.backend_travelgo.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -33,8 +29,11 @@ public class AuthController {
     @Autowired
     private JwtUtil jwtUtil;
     
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+    
     /**
-     * Login endpoint
+     * Login endpoint con validación de contraseña encriptada
      * POST /api/auth/login
      */
     @PostMapping("/login")
@@ -50,8 +49,8 @@ public class AuthController {
                 return ResponseEntity.status(401).body(error);
             }
             
-            // Verificar contraseña (en producción deberías usar BCrypt)
-            if (!credencial.getContrasena().equals(request.getContrasena())) {
+            // ✅ VERIFICAR CONTRASEÑA ENCRIPTADA CON BCRYPT
+            if (!passwordEncoder.matches(request.getContrasena(), credencial.getContrasena())) {
                 Map<String, String> error = new HashMap<>();
                 error.put("error", "Credenciales incorrectas");
                 return ResponseEntity.status(401).body(error);
