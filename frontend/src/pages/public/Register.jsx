@@ -44,6 +44,13 @@ export default function Register() {
       console.log('🔄 Usuario viene desde flujo de reserva');
     }
   }, [location]);
+   const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm({
+      ...form,
+      [name]: value,
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
