@@ -23,68 +23,58 @@ export default function BookingFlow() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Estados principales
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Datos de reserva
   const [searchData, setSearchData] = useState(null);
   const [selectedFlight, setSelectedFlight] = useState(null);
   const [selectedHotel, setSelectedHotel] = useState(null);
   const [selectedTransport, setSelectedTransport] = useState(null);
 
-  // Listas de opciones
   const [availableHotels, setAvailableHotels] = useState([]);
   const [availableTransports, setAvailableTransports] = useState([]);
   const [loadingHotels, setLoadingHotels] = useState(false);
   const [loadingTransports, setLoadingTransports] = useState(false);
 
-  // ✅ Cargar datos al montar el componente
   useEffect(() => {
     loadBookingData();
   }, []);
 
-  // ✅ Función principal para cargar datos de reserva
   const loadBookingData = async () => {
     try {
       console.log('📥 Cargando datos de reserva...');
 
-      // Verificar autenticación
       const token = localStorage.getItem('token');
       if (!token) {
-        console.log('❌ No hay sesión activa, redirigiendo a login');
+        console.log('❌ No hay sesión activa');
         navigate('/login', { state: { from: 'booking' } });
         return;
       }
 
-      // 1. Intentar obtener datos del location.state (prioridad)
       if (location.state?.selectedFlight) {
-        console.log('✅ Datos recibidos desde location.state');
+        console.log('✅ Datos desde location.state');
         setSelectedFlight(location.state.selectedFlight);
         setSearchData(location.state.searchData);
         setCurrentStep(location.state.currentStep || 1);
         
-        // Guardar en localStorage por seguridad
         bookingStorage.save({
           selectedFlight: location.state.selectedFlight,
           searchData: location.state.searchData,
           currentStep: location.state.currentStep || 1,
         });
-      } 
-      // 2. Si no hay en location.state, buscar en localStorage
-      else {
+      } else {
         const savedBooking = bookingStorage.get();
         
         if (!savedBooking) {
           console.log('⚠️ No hay reserva pendiente');
-          setError('No se encontró una reserva pendiente. Por favor, realiza una nueva búsqueda.');
+          setError('No se encontró una reserva pendiente.');
           setTimeout(() => navigate('/'), 3000);
           return;
         }
 
-        console.log('✅ Datos recuperados desde localStorage:', savedBooking);
+        console.log('✅ Datos desde localStorage');
         setSelectedFlight(savedBooking.selectedFlight);
         setSelectedHotel(savedBooking.selectedHotel || null);
         setSelectedTransport(savedBooking.selectedTransport || null);
@@ -94,16 +84,15 @@ export default function BookingFlow() {
 
       setLoading(false);
     } catch (err) {
-      console.error('❌ Error al cargar datos de reserva:', err);
-      setError('Error al cargar los datos de la reserva');
+      console.error('❌ Error:', err);
+      setError('Error al cargar los datos');
       setLoading(false);
     }
   };
 
-  // ✅ Cargar hoteles disponibles
   const loadHotels = async () => {
     if (!searchData?.destination) {
-      setError('No se puede buscar hoteles sin un destino');
+      setError('No se puede buscar hoteles sin destino');
       return;
     }
 
@@ -125,20 +114,18 @@ export default function BookingFlow() {
 
       const data = await response.json();
       setAvailableHotels(Array.isArray(data.data) ? data.data : []);
-      console.log('🏨 Hoteles cargados:', data.data?.length || 0);
     } catch (err) {
-      console.error('Error al cargar hoteles:', err);
-      setError('No se pudieron cargar los hoteles disponibles');
+      console.error('Error:', err);
+      setError('No se pudieron cargar los hoteles');
       setAvailableHotels([]);
     } finally {
       setLoadingHotels(false);
     }
   };
 
-  // ✅ Cargar transportes disponibles
   const loadTransports = async () => {
     if (!searchData?.destination) {
-      setError('No se puede buscar transporte sin un destino');
+      setError('No se puede buscar transporte sin destino');
       return;
     }
 
@@ -148,7 +135,7 @@ export default function BookingFlow() {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `http://localhost:9090/transport/search?destination=${searchData.destination}`,
+        `http://localhost:9090/api/transporte/por-tipo?tipo=Transfer`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -160,9 +147,8 @@ export default function BookingFlow() {
 
       const data = await response.json();
       setAvailableTransports(Array.isArray(data.data) ? data.data : []);
-      console.log('🚗 Transportes cargados:', data.data?.length || 0);
     } catch (err) {
-      console.error('Error al cargar transportes:', err);
+      console.error('Error:', err);
       setError('No se pudieron cargar las opciones de transporte');
       setAvailableTransports([]);
     } finally {
@@ -170,39 +156,22 @@ export default function BookingFlow() {
     }
   };
 
-  // ✅ Seleccionar hotel
   const handleSelectHotel = (hotel) => {
-    console.log('🏨 Hotel seleccionado:', hotel);
     setSelectedHotel(hotel);
-    
-    // Actualizar localStorage
     const currentBooking = bookingStorage.get() || {};
-    bookingStorage.save({
-      ...currentBooking,
-      selectedHotel: hotel,
-    });
-
-    setSuccess('✅ Hotel agregado a tu reserva');
+    bookingStorage.save({ ...currentBooking, selectedHotel: hotel });
+    setSuccess('✅ Hotel agregado');
     setTimeout(() => setSuccess(''), 3000);
   };
 
-  // ✅ Seleccionar transporte
   const handleSelectTransport = (transport) => {
-    console.log('🚗 Transporte seleccionado:', transport);
     setSelectedTransport(transport);
-    
-    // Actualizar localStorage
     const currentBooking = bookingStorage.get() || {};
-    bookingStorage.save({
-      ...currentBooking,
-      selectedTransport: transport,
-    });
-
-    setSuccess('✅ Transporte agregado a tu reserva');
+    bookingStorage.save({ ...currentBooking, selectedTransport: transport });
+    setSuccess('✅ Transporte agregado');
     setTimeout(() => setSuccess(''), 3000);
   };
 
-  // ✅ Remover hotel
   const handleRemoveHotel = () => {
     setSelectedHotel(null);
     const currentBooking = bookingStorage.get() || {};
@@ -210,7 +179,6 @@ export default function BookingFlow() {
     bookingStorage.save(currentBooking);
   };
 
-  // ✅ Remover transporte
   const handleRemoveTransport = () => {
     setSelectedTransport(null);
     const currentBooking = bookingStorage.get() || {};
@@ -218,10 +186,9 @@ export default function BookingFlow() {
     bookingStorage.save(currentBooking);
   };
 
-  // ✅ Ir al paso de pago
   const handleProceedToPayment = () => {
     if (!selectedFlight) {
-      setError('Debes seleccionar un vuelo para continuar');
+      setError('Debes seleccionar un vuelo');
       return;
     }
 
@@ -230,95 +197,136 @@ export default function BookingFlow() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // ✅ Procesar pago
+  // ✅ CORRECCIÓN PRINCIPAL: Proceso de pago simplificado
   const handlePayment = async (paymentData) => {
     setLoading(true);
     setError('');
 
     try {
       const token = localStorage.getItem('token');
-      const usuarioId = localStorage.getItem('usuarioId');
+      const usuarioId = parseInt(localStorage.getItem('usuarioId'));
 
-      // Construir objeto de reserva
-      const reservaData = {
-        usuarioId: parseInt(usuarioId),
-        fechaReserva: new Date().toISOString(),
-        estado: 'pendiente',
-        // Datos del vuelo
-        viajeId: selectedFlight.id,
-        // Datos opcionales
-        alojamientoId: selectedHotel?.hotelId || null,
-        transporteId: selectedTransport?.id || null,
-        // Datos del pasajero y pago
-        pasajero: {
-          primerNombre: paymentData.primerNombre,
-          primerApellido: paymentData.primerApellido,
-          email: paymentData.email,
-          telefono: paymentData.telefono,
-          documento: paymentData.documento,
-        },
-        pago: {
-          metodoPago: paymentData.metodoPago,
-          monto: calculateTotal(),
-          moneda: selectedFlight.price?.currency || 'USD',
-          estado: 'pendiente',
-          // Datos específicos del método de pago
-          ...(paymentData.metodoPago === 'Tarjeta' && {
-            numeroTarjeta: paymentData.numeroTarjeta.slice(-4), // Solo últimos 4 dígitos
-            nombreTitular: paymentData.nombreTitular,
-          }),
-          ...(paymentData.metodoPago === 'PSE' && {
-            banco: paymentData.banco,
-            tipoPersona: paymentData.tipoPersona,
-          }),
-          ...(paymentData.metodoPago === 'Nequi' && {
-            numeroNequi: paymentData.numeroNequi,
-          }),
-        },
+      console.log('💳 Iniciando proceso de reserva...');
+
+      // PASO 1: Crear el viaje
+      let viajeId = null;
+      
+      if (selectedFlight) {
+        const viajePayload = {
+          flightOfferId: selectedFlight.id,
+          origin: searchData.origin,
+          destinationCode: searchData.destination,
+          departureDate: searchData.departureDate,
+          returnDate: searchData.returnDate || null,
+          precio: parseFloat(selectedFlight.price?.total || 0),
+          currency: selectedFlight.price?.currency || 'USD',
+          airline: selectedFlight.itineraries?.[0]?.segments?.[0]?.carrierCode,
+          bookableSeats: selectedFlight.numberOfBookableSeats,
+          tipoViaje: 'vuelo',
+          titulo: `${searchData.origin} → ${searchData.destination}`,
+        };
+
+        console.log('📦 Guardando viaje:', viajePayload);
+
+        const viajeResponse = await fetch('http://localhost:9090/api/viajes', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(viajePayload),
+        });
+
+        if (!viajeResponse.ok) {
+          const errorText = await viajeResponse.text();
+          console.error('❌ Error al guardar viaje:', errorText);
+          throw new Error('Error al guardar el viaje');
+        }
+
+        const viajeData = await viajeResponse.json();
+        viajeId = viajeData.data?.id || viajeData.id;
+        console.log('✅ Viaje guardado con ID:', viajeId);
+      }
+
+      // PASO 2: Crear la reserva
+      // ✅ IMPORTANTE: Los campos deben coincidir EXACTAMENTE con la BD
+      const reservaPayload = {
+        usuarioId: usuarioId,        // → usuario_id en BD
+        viajeId: viajeId,            // → viaje_id en BD
+        alojamientoId: selectedHotel?.id || null,      // → alojamiento_id en BD
+        transporteId: selectedTransport?.id || null,    // → transporte_id en BD
+        estado: 'pendiente',          // → estado en BD
       };
 
-      console.log('💳 Procesando reserva:', reservaData);
+      console.log('📦 Creando reserva:', reservaPayload);
 
-      const response = await fetch('http://localhost:9090/api/reservas', {
+      const reservaResponse = await fetch('http://localhost:9090/api/reservas', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(reservaData),
+        body: JSON.stringify(reservaPayload),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al procesar la reserva');
+      if (!reservaResponse.ok) {
+        const errorText = await reservaResponse.text();
+        console.error('❌ Error del servidor:', errorText);
+        throw new Error('Error al crear la reserva');
       }
 
-      const result = await response.json();
-      console.log('✅ Reserva creada exitosamente:', result);
+      const reservaData = await reservaResponse.json();
+      const reservaId = reservaData.data?.id || reservaData.id;
+      console.log('✅ Reserva creada con ID:', reservaId);
 
-      // Limpiar datos temporales
+      // PASO 3: Crear el pago
+      const pagoPayload = {
+        reserva: { id: reservaId },
+        metodoPago: paymentData.metodoPago,
+        monto: parseFloat(calculateTotal()),
+        estado: 'pagado',
+        fechaPago: new Date().toISOString().split('T')[0],
+      };
+
+      console.log('💰 Creando pago:', pagoPayload);
+
+      const pagoResponse = await fetch('http://localhost:9090/api/pago', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pagoPayload),
+      });
+
+      if (!pagoResponse.ok) {
+        console.warn('⚠️ Error al crear pago, pero reserva fue exitosa');
+      } else {
+        console.log('✅ Pago registrado');
+      }
+
+      // PASO 4: Limpiar y redirigir
       bookingStorage.clear();
-
-      // Mostrar éxito y redirigir
       setSuccess('🎉 ¡Reserva realizada exitosamente!');
       
       setTimeout(() => {
         navigate('/UserProfile', { 
           state: { 
-            showReservas: true,
-            newReservaId: result.id 
+            activeTab: 'reservas',
+            newReservaId: reservaId,
+            showSuccess: true,
           } 
         });
       }, 2000);
 
     } catch (err) {
-      console.error('❌ Error al procesar pago:', err);
-      setError(`Error al procesar la reserva: ${err.message}`);
+      console.error('❌ Error:', err);
+      setError(`Error: ${err.message}`);
+    } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Calcular total
   const calculateTotal = () => {
     let total = 0;
     
@@ -337,7 +345,6 @@ export default function BookingFlow() {
     return total.toFixed(2);
   };
 
-  // ✅ Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-astronaut-light to-cosmic-light flex items-center justify-center">
@@ -376,7 +383,7 @@ export default function BookingFlow() {
         </div>
       </header>
 
-      {/* Wizard de progreso */}
+      {/* Wizard */}
       <div className="container mx-auto px-4 pt-6">
         <BookingWizard currentStep={currentStep} onStepChange={setCurrentStep} />
       </div>
@@ -384,39 +391,30 @@ export default function BookingFlow() {
       {/* Mensajes */}
       <div className="container mx-auto px-4 mt-6">
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg flex items-start gap-3 mb-6 animate-fade-in">
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg flex items-start gap-3 mb-6">
             <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-red-800 font-medium">{error}</p>
-            </div>
-            <button onClick={() => setError('')} className="text-red-500 hover:text-red-700">
-              <ArrowLeft className="w-5 h-5" />
-            </button>
+            <p className="text-red-800 font-medium">{error}</p>
+            <button onClick={() => setError('')} className="ml-auto text-red-500">×</button>
           </div>
         )}
 
         {success && (
-          <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg flex items-start gap-3 mb-6 animate-fade-in">
+          <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg flex items-start gap-3 mb-6">
             <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-green-800 font-medium">{success}</p>
-            </div>
-            <button onClick={() => setSuccess('')} className="text-green-500 hover:text-green-700">
-              <ArrowLeft className="w-5 h-5" />
-            </button>
+            <p className="text-green-800 font-medium">{success}</p>
+            <button onClick={() => setSuccess('')} className="ml-auto text-green-500">×</button>
           </div>
         )}
       </div>
 
-      {/* Contenido principal */}
+      {/* Contenido */}
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Columna izquierda - Selección */}
+          {/* Columna principal */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Paso 1-3: Selección de servicios */}
             {currentStep < 4 && (
               <>
-                {/* Vuelo seleccionado */}
+                {/* Vuelo */}
                 <div className="bg-white rounded-xl shadow-lg p-6">
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-2xl font-bold text-astronaut-dark flex items-center gap-2">
@@ -428,128 +426,92 @@ export default function BookingFlow() {
                     </span>
                   </div>
                   {selectedFlight && (
-                    <FlightCard
-                      flight={selectedFlight}
-                      onSelect={() => {}}
-                      isSelected={true}
-                    />
+                    <FlightCard flight={selectedFlight} onSelect={() => {}} isSelected={true} />
                   )}
                 </div>
 
-                {/* Hotel (opcional) */}
+                {/* Hotel */}
                 <div className="bg-white rounded-xl shadow-lg p-6">
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-2xl font-bold text-astronaut-dark flex items-center gap-2">
                       <Hotel className="w-6 h-6 text-cosmic-base" />
-                      Hotel
-                      <span className="text-sm font-normal text-gray-500">(Opcional)</span>
+                      Hotel <span className="text-sm font-normal text-gray-500">(Opcional)</span>
                     </h2>
                     {selectedHotel ? (
-                      <button
-                        onClick={handleRemoveHotel}
-                        className="text-red-600 hover:text-red-700 text-sm font-medium"
-                      >
+                      <button onClick={handleRemoveHotel} className="text-red-600 text-sm">
                         Remover
                       </button>
                     ) : (
                       <button
                         onClick={loadHotels}
                         disabled={loadingHotels}
-                        className="px-4 py-2 bg-cosmic-base text-white rounded-lg hover:bg-cosmic-dark transition-colors disabled:opacity-50"
+                        className="px-4 py-2 bg-cosmic-base text-white rounded-lg hover:bg-cosmic-dark disabled:opacity-50"
                       >
                         {loadingHotels ? 'Buscando...' : 'Buscar Hoteles'}
                       </button>
                     )}
                   </div>
-
                   {selectedHotel ? (
-                    <HotelCard
-                      hotel={selectedHotel}
-                      onSelect={() => {}}
-                      isSelected={true}
-                    />
+                    <HotelCard hotel={selectedHotel} onSelect={() => {}} isSelected={true} />
                   ) : availableHotels.length > 0 ? (
                     <div className="space-y-4 max-h-96 overflow-y-auto">
-                      {availableHotels.map((hotel, index) => (
-                        <HotelCard
-                          key={hotel.hotelId || index}
-                          hotel={hotel}
-                          onSelect={handleSelectHotel}
-                          isSelected={false}
-                        />
+                      {availableHotels.map((hotel, i) => (
+                        <HotelCard key={i} hotel={hotel} onSelect={handleSelectHotel} isSelected={false} />
                       ))}
                     </div>
                   ) : (
                     <p className="text-gray-500 text-center py-8">
-                      Haz clic en "Buscar Hoteles" para ver opciones disponibles
+                      Haz clic en "Buscar Hoteles"
                     </p>
                   )}
                 </div>
 
-                {/* Transporte (opcional) */}
+                {/* Transporte */}
                 <div className="bg-white rounded-xl shadow-lg p-6">
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-2xl font-bold text-astronaut-dark flex items-center gap-2">
                       <Car className="w-6 h-6 text-cosmic-base" />
-                      Transporte
-                      <span className="text-sm font-normal text-gray-500">(Opcional)</span>
+                      Transporte <span className="text-sm font-normal text-gray-500">(Opcional)</span>
                     </h2>
                     {selectedTransport ? (
-                      <button
-                        onClick={handleRemoveTransport}
-                        className="text-red-600 hover:text-red-700 text-sm font-medium"
-                      >
+                      <button onClick={handleRemoveTransport} className="text-red-600 text-sm">
                         Remover
                       </button>
                     ) : (
                       <button
                         onClick={loadTransports}
                         disabled={loadingTransports}
-                        className="px-4 py-2 bg-cosmic-base text-white rounded-lg hover:bg-cosmic-dark transition-colors disabled:opacity-50"
+                        className="px-4 py-2 bg-cosmic-base text-white rounded-lg hover:bg-cosmic-dark disabled:opacity-50"
                       >
                         {loadingTransports ? 'Buscando...' : 'Buscar Transporte'}
                       </button>
                     )}
                   </div>
-
                   {selectedTransport ? (
-                    <TransportCard
-                      transport={selectedTransport}
-                      onSelect={() => {}}
-                      isSelected={true}
-                    />
+                    <TransportCard transport={selectedTransport} onSelect={() => {}} isSelected={true} />
                   ) : availableTransports.length > 0 ? (
                     <div className="space-y-4 max-h-96 overflow-y-auto">
-                      {availableTransports.map((transport, index) => (
-                        <TransportCard
-                          key={transport.id || index}
-                          transport={transport}
-                          onSelect={handleSelectTransport}
-                          isSelected={false}
-                        />
+                      {availableTransports.map((t, i) => (
+                        <TransportCard key={i} transport={t} onSelect={handleSelectTransport} isSelected={false} />
                       ))}
                     </div>
                   ) : (
                     <p className="text-gray-500 text-center py-8">
-                      Haz clic en "Buscar Transporte" para ver opciones disponibles
+                      Haz clic en "Buscar Transporte"
                     </p>
                   )}
                 </div>
 
-                {/* Botón continuar al pago */}
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <button
-                    onClick={handleProceedToPayment}
-                    className="w-full bg-gradient-to-r from-flame-base to-flame-dark hover:from-flame-dark hover:to-cosmic-dark text-white font-bold py-4 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
-                  >
-                    <CreditCard className="w-6 h-6" />
-                    Continuar al Pago
-                  </button>
-                </div>
+                <button
+                  onClick={handleProceedToPayment}
+                  className="w-full bg-gradient-to-r from-flame-base to-flame-dark text-white font-bold py-4 rounded-lg hover:scale-105 transition-transform flex items-center justify-center gap-2"
+                >
+                  <CreditCard className="w-6 h-6" />
+                  Continuar al Pago
+                </button>
               </>
             )}
 
-            {/* Paso 4: Pago */}
             {currentStep === 4 && (
               <div className="bg-white rounded-xl shadow-lg p-6">
                 <h2 className="text-2xl font-bold text-astronaut-dark mb-6 flex items-center gap-2">
@@ -560,16 +522,16 @@ export default function BookingFlow() {
                 
                 <button
                   onClick={() => setCurrentStep(3)}
-                  className="mt-6 w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  className="mt-6 w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-3 rounded-lg flex items-center justify-center gap-2"
                 >
                   <ArrowLeft className="w-5 h-5" />
-                  Volver a Servicios
+                  Volver
                 </button>
               </div>
             )}
           </div>
 
-          {/* Columna derecha - Resumen */}
+          {/* Resumen */}
           <div className="lg:col-span-1">
             <BookingSummary
               flight={selectedFlight}
