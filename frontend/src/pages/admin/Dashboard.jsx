@@ -153,9 +153,50 @@ export default function AdminDashboard() {
   };
 
   const loadDashboardData = async () => {
-    try {
-      const token = localStorage.getItem("token");
+  try {
+    const token = localStorage.getItem("token");
+    const tipoUsuario = localStorage.getItem("tipoUsuario");
+if (!token || tipoUsuario !== "admin") {
+      navigate("/admin/login");
+      return;
+    }
 
+    et usuariosArray = [];
+    let reservasArray = [];
+
+    // ==========================================
+    // CARGAR USUARIOS con manejo de errores
+    // ==========================================
+    try {
+      const resUsuarios = await fetch("http://localhost:9090/api/usuarios", {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+      });
+
+      console.log("Status usuarios:", resUsuarios.status);
+
+      if (resUsuarios.status === 401 || resUsuarios.status === 403) {
+        console.error("Token inválido o expirado");
+        localStorage.clear();
+        navigate("/admin/login");
+        return;
+      }
+
+      if (resUsuarios.ok) {
+        const dataUsuarios = await resUsuarios.json();
+        usuariosArray = Array.isArray(dataUsuarios) ? dataUsuarios : [];
+        console.log("✅ Usuarios cargados:", usuariosArray.length);
+      } else {
+        console.error("Error al cargar usuarios:", resUsuarios.status);
+        const errorData = await resUsuarios.text();
+        console.error("Error data:", errorData);
+      }
+    } catch (errUsuarios) {
+      console.error("❌ Error fetch usuarios:", errUsuarios);
+      setError("Error al cargar usuarios. Verifica la conexión con el backend.");
+    }
       // Cargar usuarios
       const resUsuarios = await fetch("http://localhost:9090/api/usuarios", {
         headers: { Authorization: `Bearer ${token}` },
@@ -431,7 +472,7 @@ export default function AdminDashboard() {
     try {
       const token = localStorage.getItem("token");
       
-      const response = await fetch("http://localhost:9090/api/administrador/register-admin", {
+     const response = await fetch("http://localhost:9090/api/administrador/register-admin", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
