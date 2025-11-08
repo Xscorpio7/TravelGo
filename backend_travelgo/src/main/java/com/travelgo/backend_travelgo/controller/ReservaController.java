@@ -65,6 +65,50 @@ public class ReservaController {
     }
     
     /**
+     * ✅ CORREGIDO - Obtener reservas por usuario
+     * GET /api/reservas/usuario/{usuarioId}
+     */
+    @GetMapping("/usuario/{usuarioId}")
+    public ResponseEntity<?> getReservasByUsuario(
+            @PathVariable Integer usuarioId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        try {
+            // Verificar autenticación
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(401).body(Map.of("error", "Token no proporcionado"));
+            }
+            
+            String token = authHeader.substring(7);
+            
+            if (jwtUtil.isTokenExpired(token)) {
+                return ResponseEntity.status(401).body(Map.of("error", "Token expirado"));
+            }
+            
+            // Verificar que el usuario autenticado es el mismo o es admin
+            Integer tokenUsuarioId = jwtUtil.extractUsuarioId(token);
+            String tipoUsuario = jwtUtil.extractTipoUsuario(token);
+            
+            if (!tokenUsuarioId.equals(usuarioId) && !"admin".equalsIgnoreCase(tipoUsuario)) {
+                return ResponseEntity.status(403).body(Map.of("error", "No tienes permiso para ver estas reservas"));
+            }
+            
+            logger.info("📋 Obteniendo reservas para usuario: {}", usuarioId);
+            
+            // ✅ USAR EL MÉTODO CORRECTO
+            List<Reserva> reservas = reservaService.findByUsuarioId(usuarioId);
+            
+            logger.info("✅ Encontradas {} reservas para usuario {}", reservas.size(), usuarioId);
+            
+            return ResponseEntity.ok(reservas);
+            
+        } catch (Exception e) {
+            logger.error("❌ Error al obtener reservas del usuario {}: {}", usuarioId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Error al obtener reservas: " + e.getMessage()));
+        }
+    }
+    
+    /**
      * Obtener una reserva por ID
      * GET /api/reservas/{id}
      */
@@ -105,9 +149,9 @@ public class ReservaController {
     @PostMapping
     public ResponseEntity<?> createReserva(@RequestBody Reserva reserva) {
         try {
-            logger.info("Creando nueva reserva para usuario: {}", reserva.getUsuario_id());
+            logger.info("Creando nueva reserva para usuario: {}", reserva.getUsuarioId());
             
-            if (reserva.getUsuario_id() == null || reserva.getViaje_id() == null) {
+            if (reserva.getUsuarioId() == null || reserva.getViajeId() == null) {
                 Map<String, String> error = new HashMap<>();
                 error.put("error", "Usuario ID y Viaje ID son requeridos");
                 return ResponseEntity.badRequest().body(error);
@@ -145,17 +189,17 @@ public class ReservaController {
             return reservaRepository.findById(id)
                     .map(reserva -> {
                         // Actualizar campos
-                        if (reservaDetails.getUsuario_id() != null) {
-                            reserva.setUsuario_id(reservaDetails.getUsuario_id());
+                        if (reservaDetails.getUsuarioId() != null) {
+                            reserva.setUsuarioId(reservaDetails.getUsuarioId());
                         }
-                        if (reservaDetails.getViaje_id() != null) {
-                            reserva.setViaje_id(reservaDetails.getViaje_id());
+                        if (reservaDetails.getViajeId() != null) {
+                            reserva.setViajeId(reservaDetails.getViajeId());
                         }
-                        if (reservaDetails.getAlojamiento_id() != null) {
-                            reserva.setAlojamiento_id(reservaDetails.getAlojamiento_id());
+                        if (reservaDetails.getAlojamientoId() != null) {
+                            reserva.setAlojamientoId(reservaDetails.getAlojamientoId());
                         }
-                        if (reservaDetails.getTransporte_id() != null) {
-                            reserva.setTransporte_id(reservaDetails.getTransporte_id());
+                        if (reservaDetails.getTransporteId() != null) {
+                            reserva.setTransporteId(reservaDetails.getTransporteId());
                         }
                         if (reservaDetails.getEstado() != null) {
                             reserva.setEstado(reservaDetails.getEstado());
@@ -265,21 +309,6 @@ public class ReservaController {
             Map<String, String> error = new HashMap<>();
             error.put("error", "Error al cambiar estado: " + e.getMessage());
             return ResponseEntity.internalServerError().body(error);
-        }
-    }
-    
-    /**
-     * Obtener reservas por usuario
-     * GET /api/reservas/usuario/{usuarioId}
-     */
-    @GetMapping("/usuario/{usuarioId}")
-    public ResponseEntity<?> getReservasByUsuario(@PathVariable Long usuarioId) {
-        try {
-            List<Reserva> reservas = reservaService.findByUsuarioId(usuarioId);
-            return ResponseEntity.ok(reservas);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Error al obtener reservas: " + e.getMessage()));
         }
     }
 }

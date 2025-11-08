@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaMapMarkedAlt } from "react-icons/fa";
 import { bookingStorage } from "../../utils/bookingStorage";
@@ -15,6 +15,21 @@ function SearchCard() {
     adults: 1,
   });
 
+  // Estados para códigos IATA (lo que se envía a Amadeus)
+  const [originCode, setOriginCode] = useState("");
+  const [destinationCode, setDestinationCode] = useState("");
+
+  // Estados para autocompletado
+  const [originSuggestions, setOriginSuggestions] = useState([]);
+  const [destinationSuggestions, setDestinationSuggestions] = useState([]);
+  const [showOriginSuggestions, setShowOriginSuggestions] = useState(false);
+  const [showDestinationSuggestions, setShowDestinationSuggestions] = useState(false);
+  const [searchingOrigin, setSearchingOrigin] = useState(false);
+  const [searchingDestination, setSearchingDestination] = useState(false);
+
+  const originRef = useRef(null);
+  const destinationRef = useRef(null);
+
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -23,11 +38,135 @@ function SearchCard() {
   const [showModal, setShowModal] = useState(false);
   const [pendingBooking, setPendingBooking] = useState(null);
 
+  // Cerrar sugerencias al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (originRef.current && !originRef.current.contains(event.target)) {
+        setShowOriginSuggestions(false);
+      }
+      if (destinationRef.current && !destinationRef.current.contains(event.target)) {
+        setShowDestinationSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // 🔍 Buscar ubicaciones en Amadeus
+  const searchLocations = async (keyword, isOrigin) => {
+    if (!keyword || keyword.length < 2) {
+      if (isOrigin) {
+        setOriginSuggestions([]);
+        setShowOriginSuggestions(false);
+      } else {
+        setDestinationSuggestions([]);
+        setShowDestinationSuggestions(false);
+      }
+      return;
+    }
+
+    try {
+      if (isOrigin) {
+        setSearchingOrigin(true);
+      } else {
+        setSearchingDestination(true);
+      }
+
+      const response = await fetch(
+        `http://localhost:9090/flights/locations?keyword=${encodeURIComponent(keyword)}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.status === "SUCCESS" && data.data) {
+        const locations = data.data.map(loc => ({
+          iataCode: loc.iataCode,
+          name: loc.name,
+          address: loc.address?.cityName || loc.address?.countryName || "",
+          type: loc.subType,
+          displayName: `${loc.name} (${loc.iataCode}) - ${loc.address?.cityName || loc.address?.countryName || ""}`
+        }));
+
+        if (isOrigin) {
+          setOriginSuggestions(locations);
+          setShowOriginSuggestions(locations.length > 0);
+        } else {
+          setDestinationSuggestions(locations);
+          setShowDestinationSuggestions(locations.length > 0);
+        }
+      }
+    } catch (error) {
+      console.error("Error buscando ubicaciones:", error);
+    } finally {
+      if (isOrigin) {
+        setSearchingOrigin(false);
+      } else {
+        setSearchingDestination(false);
+      }
+    }
+  };
+
+  // Debounce para búsqueda
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (formData.origin && !originCode) {
+        searchLocations(formData.origin, true);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [formData.origin]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (formData.destination && !destinationCode) {
+        searchLocations(formData.destination, false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [formData.destination]);
+
   const handleChange = (e) => {
+    const { name, value } = e.target;
+    
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
+
+    // Limpiar código IATA si el usuario cambia el texto
+    if (name === "origin") {
+      setOriginCode("");
+    } else if (name === "destination") {
+      setDestinationCode("");
+    }
+  };
+
+  // Seleccionar sugerencia
+  const selectLocation = (location, isOrigin) => {
+    if (isOrigin) {
+      setFormData(prev => ({ ...prev, origin: location.displayName }));
+      setOriginCode(location.iataCode);
+      setShowOriginSuggestions(false);
+      setOriginSuggestions([]);
+    } else {
+      setFormData(prev => ({ ...prev, destination: location.displayName }));
+      setDestinationCode(location.iataCode);
+      setShowDestinationSuggestions(false);
+      setDestinationSuggestions([]);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -36,11 +175,32 @@ function SearchCard() {
     setError("");
     
     try {
-      console.log("Enviando datos:", formData);
+      // Validar que tengamos códigos IATA
+      let finalOriginCode = originCode;
+      let finalDestinationCode = destinationCode;
+
+      // Si el usuario escribió un código de 3 letras directamente
+      if (!originCode && formData.origin.length === 3) {
+        finalOriginCode = formData.origin.toUpperCase();
+      }
+      if (!destinationCode && formData.destination.length === 3) {
+        finalDestinationCode = formData.destination.toUpperCase();
+      }
+
+      if (!finalOriginCode || !finalDestinationCode) {
+        throw new Error("Por favor selecciona una ciudad válida de las sugerencias o ingresa un código IATA de 3 letras");
+      }
+
+      console.log("Enviando búsqueda:", {
+        origin: finalOriginCode,
+        destination: finalDestinationCode,
+        departure: formData.departureDate,
+        returnDate: formData.returnDate
+      });
       
       const queryParams = new URLSearchParams({
-        origin: formData.origin,
-        destination: formData.destination,
+        origin: finalOriginCode,
+        destination: finalDestinationCode,
         departure: formData.departureDate,
         adults: formData.adults,
         max: 10
@@ -98,36 +258,31 @@ function SearchCard() {
     }
   };
 
-  // ✅ FUNCIÓN MEJORADA para manejar reserva
+  // Función para manejar reserva
   const handleReservation = (flight) => {
     console.log("🎫 Iniciando proceso de reserva para vuelo:", flight.id);
     
-    // Crear objeto completo de reserva
     const bookingData = {
-    selectedFlight: flight,
-    searchData: {
-    origin: formData.origin,
-    destination: formData.destination,
-    departureDate: formData.departureDate,
-    returnDate: formData.returnDate || null,
-    adults: formData.adults,
-  },
-  currentStep: 1,
-  timestamp: new Date().toISOString(),
-};
-
+      selectedFlight: flight,
+      searchData: {
+        origin: originCode || formData.origin,
+        destination: destinationCode || formData.destination,
+        departureDate: formData.departureDate,
+        returnDate: formData.returnDate || null,
+        adults: formData.adults,
+      },
+      currentStep: 1,
+      timestamp: new Date().toISOString(),
+    };
     
-    // Verificar si el usuario está autenticado
     const token = localStorage.getItem('token');
     
     if (!token) {
-      // ❌ Usuario NO autenticado - Mostrar modal
       console.log('🔐 Usuario no autenticado - Mostrando modal');
       bookingStorage.save(bookingData);
       setPendingBooking(bookingData);
       setShowModal(true);
     } else {
-      // ✅ Usuario autenticado - Continuar directo
       console.log('✅ Usuario autenticado - Continuando con reserva');
       navigate('/booking', { state: bookingData });
     }
@@ -182,40 +337,96 @@ function SearchCard() {
           )}
           
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* ORIGEN */}
-            <div>                  
+            {/* ORIGEN con Autocompletado */}
+            <div ref={originRef} className="relative">
               <label htmlFor="origin" className="block text-astronaut-dark font-medium mb-2">Origen</label>
               <div className="relative">
-                <i className="fas fa-plane-departure absolute left-3 top-3 text-cosmic-base"></i>
+                <i className="fas fa-plane-departure absolute left-3 top-3 text-cosmic-base z-10"></i>
                 <input 
                   type="text" 
                   id="origin" 
                   name="origin"
-                  placeholder="MAD, BCN, etc." 
+                  placeholder="Madrid, Barcelona, ATH..." 
                   value={formData.origin} 
                   onChange={handleChange}
+                  onFocus={() => formData.origin && setShowOriginSuggestions(true)}
                   required
+                  autoComplete="off"
                   className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-base"
                 />
+                {searchingOrigin && (
+                  <i className="fas fa-spinner fa-spin absolute right-3 top-3 text-cosmic-base"></i>
+                )}
               </div>
+
+              {/* Sugerencias de Origen */}
+              {showOriginSuggestions && originSuggestions.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {originSuggestions.map((location, index) => (
+                    <div
+                      key={`${location.iataCode}-${index}`}
+                      onClick={() => selectLocation(location, true)}
+                      className="px-4 py-3 hover:bg-cosmic-light cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                    >
+                      <div className="flex items-center">
+                        <i className="fas fa-map-marker-alt text-cosmic-base mr-3"></i>
+                        <div>
+                          <p className="font-semibold text-astronaut-dark">{location.name}</p>
+                          <p className="text-sm text-gray-500">
+                            {location.iataCode} - {location.address}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* DESTINO */}
-            <div>                  
+            {/* DESTINO con Autocompletado */}
+            <div ref={destinationRef} className="relative">
               <label htmlFor="destination" className="block text-astronaut-dark font-medium mb-2">Destino</label>
               <div className="relative">
-                <i className="fas fa-plane-arrival absolute left-3 top-3 text-cosmic-base"></i>
+                <i className="fas fa-plane-arrival absolute left-3 top-3 text-cosmic-base z-10"></i>
                 <input 
                   type="text" 
                   id="destination"
                   name="destination"
-                  placeholder="ATH, LON, etc." 
+                  placeholder="Athens, London, BCN..." 
                   value={formData.destination} 
                   onChange={handleChange}
+                  onFocus={() => formData.destination && setShowDestinationSuggestions(true)}
                   required
+                  autoComplete="off"
                   className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-base"
                 />
+                {searchingDestination && (
+                  <i className="fas fa-spinner fa-spin absolute right-3 top-3 text-cosmic-base"></i>
+                )}
               </div>
+
+              {/* Sugerencias de Destino */}
+              {showDestinationSuggestions && destinationSuggestions.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {destinationSuggestions.map((location, index) => (
+                    <div
+                      key={`${location.iataCode}-${index}`}
+                      onClick={() => selectLocation(location, false)}
+                      className="px-4 py-3 hover:bg-cosmic-light cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                    >
+                      <div className="flex items-center">
+                        <i className="fas fa-map-marker-alt text-cosmic-base mr-3"></i>
+                        <div>
+                          <p className="font-semibold text-astronaut-dark">{location.name}</p>
+                          <p className="text-sm text-gray-500">
+                            {location.iataCode} - {location.address}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* FECHA DE SALIDA */}
@@ -284,6 +495,19 @@ function SearchCard() {
               </button>
             </div>
           </form>
+
+          {/* Indicadores de códigos seleccionados */}
+          {(originCode || destinationCode) && (
+            <div className="mt-4 p-3 bg-cosmic-light/30 rounded-lg border border-cosmic-base/30">
+              <p className="text-sm text-astronaut-dark">
+                <i className="fas fa-info-circle mr-2 text-cosmic-base"></i>
+                Buscando vuelos: 
+                {originCode && <span className="font-semibold ml-1">{originCode}</span>}
+                {originCode && destinationCode && <i className="fas fa-arrow-right mx-2 text-cosmic-base"></i>}
+                {destinationCode && <span className="font-semibold">{destinationCode}</span>}
+              </p>
+            </div>
+          )}
         </div>
       </section>
 

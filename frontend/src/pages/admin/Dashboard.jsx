@@ -161,7 +161,7 @@ if (!token || tipoUsuario !== "admin") {
       return;
     }
 
-    et usuariosArray = [];
+    let usuariosArray = [];
     let reservasArray = [];
 
     // ==========================================
