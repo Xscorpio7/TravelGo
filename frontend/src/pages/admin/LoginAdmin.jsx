@@ -10,53 +10,52 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+ const handleLogin = async (e) => {
+  e.preventDefault();
+  setError("");
+  setLoading(true);
 
-    try {
-      const response = await fetch("http://localhost:9090/api/auth/login", {
-        method: "POST", // ✅ Cambiar a POST
-        headers: { 
-          "Content-Type": "application/json" 
-        },
-        body: JSON.stringify({ 
-          correo,      // ✅ Usar 'correo' en lugar de 'email'
-          contrasena   // ✅ Usar 'contrasena' en lugar de 'password'
-        }),
-      });
+  try {
+    console.log("🔐 Intentando login con:", correo); // Debug
 
-      const data = await response.json();
+    const response = await fetch("http://localhost:9090/api/admin/login", { // ✅ Usar endpoint de admin
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json" 
+      },
+      body: JSON.stringify({ 
+        correo,
+        contrasena
+      }),
+    });
 
-      if (response.ok) {
-        // ✅ Verificar que sea admin
-        if (data.tipoUsuario !== 'admin') {
-          setError("⛔ Acceso denegado. Solo administradores pueden acceder.");
-          setLoading(false);
-          return;
-        }
+    const data = await response.json();
+    console.log("📥 Respuesta del servidor:", data); // Debug
 
-        // ✅ Guardar datos en localStorage
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("usuarioId", data.usuarioId);
-        localStorage.setItem("correo", data.correo);
-        localStorage.setItem("primerNombre", data.primerNombre);
-        localStorage.setItem("primerApellido", data.primerApellido);
-        localStorage.setItem("tipoUsuario", data.tipoUsuario);
+    if (response.ok) {
+      // ✅ Guardar datos en localStorage
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("usuarioId", data.usuarioId);
+      localStorage.setItem("correo", data.correo);
+      localStorage.setItem("primerNombre", data.primerNombre || "Admin");
+      localStorage.setItem("primerApellido", data.primerApellido || "");
+      localStorage.setItem("tipoUsuario", data.tipoUsuario);
 
-        // ✅ Redirigir al dashboard
-        navigate("/admin/dashboard");
-      } else {
-        setError(data.error || "❌ Credenciales incorrectas");
-      }
-    } catch (err) {
-      console.error("❌ Error de conexión:", err);
-      setError("❌ Error de conexión con el servidor. Verifica que el backend esté ejecutándose en http://localhost:9090");
-    } finally {
-      setLoading(false);
+      console.log("✅ Login exitoso, redirigiendo..."); // Debug
+
+      // ✅ Redirigir al dashboard
+      navigate("/admin/dashboard");
+    } else {
+      console.error("❌ Error de autenticación:", data); // Debug
+      setError(data.error || "❌ Credenciales incorrectas");
     }
-  };
+  } catch (err) {
+    console.error("❌ Error de conexión:", err);
+    setError("❌ Error de conexión. Verifica que el backend esté en http://localhost:9090");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-astronaut-dark via-cosmic-dark to-astronaut-dark relative overflow-hidden">

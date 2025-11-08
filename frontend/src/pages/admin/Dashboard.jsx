@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Eye,
+  EyeOff,
   Calendar,
   Plane,
   Hotel,
@@ -430,7 +431,7 @@ export default function AdminDashboard() {
     try {
       const token = localStorage.getItem("token");
       
-      const response = await fetch("http://localhost:9090/api/auth/register-admin", {
+      const response = await fetch("http://localhost:9090/api/administrador/register-admin", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
