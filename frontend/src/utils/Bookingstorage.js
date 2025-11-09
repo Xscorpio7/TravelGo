@@ -1,72 +1,75 @@
-/**
- * Utilidad para gestionar el almacenamiento temporal de datos de reserva
- * durante el proceso de login/registro
- */
-
-const BOOKING_STORAGE_KEY = 'travelgo_pending_booking';
+// Utilidad para manejar el almacenamiento temporal de reservas
+const BOOKING_KEY = 'pendingBooking';
+const BOOKING_EXPIRY = 30 * 60 * 1000; // 30 minutos
 
 export const bookingStorage = {
-  /**
-   * Guardar datos de reserva temporal
-   */
   save: (bookingData) => {
     try {
-      const dataToSave = {
+      const data = {
         ...bookingData,
-        timestamp: new Date().getTime(),
-        expiresIn: 30 * 60 * 1000, // 30 minutos
+        timestamp: Date.now(),
+        expiresAt: Date.now() + BOOKING_EXPIRY,
       };
-      localStorage.setItem(BOOKING_STORAGE_KEY, JSON.stringify(dataToSave));
-      console.log('✅ Datos de reserva guardados temporalmente:', dataToSave);
+      localStorage.setItem(BOOKING_KEY, JSON.stringify(data));
+      console.log('💾 Reserva guardada en localStorage:', data);
       return true;
     } catch (error) {
-      console.error('❌ Error al guardar datos de reserva:', error);
+      console.error('❌ Error guardando reserva:', error);
       return false;
     }
   },
 
-  /**
-   * Obtener datos de reserva temporal
-   */
   get: () => {
     try {
-      const stored = localStorage.getItem(BOOKING_STORAGE_KEY);
+      const stored = localStorage.getItem(BOOKING_KEY);
       if (!stored) {
-        console.log('ℹ️ No hay datos de reserva almacenados');
+        console.log('📭 No hay reserva guardada');
         return null;
       }
 
       const data = JSON.parse(stored);
       
-      // Verificar si no ha expirado (30 minutos)
-      const now = new Date().getTime();
-      if (now - data.timestamp > data.expiresIn) {
-        console.log('⏰ Datos de reserva expirados, eliminando...');
+      // Verificar si expiró
+      if (Date.now() > data.expiresAt) {
+        console.log('⏰ Reserva expirada');
         bookingStorage.clear();
         return null;
       }
 
-      console.log('✅ Datos de reserva recuperados:', data);
+      console.log('✅ Reserva recuperada:', data);
       return data;
     } catch (error) {
-      console.error('❌ Error al recuperar datos de reserva:', error);
+      console.error('❌ Error recuperando reserva:', error);
       return null;
     }
   },
 
-  /**
-   * Limpiar datos de reserva temporal
-   */
   clear: () => {
     try {
-      localStorage.removeItem(BOOKING_STORAGE_KEY);
-      console.log('🗑️ Datos de reserva temporal eliminados');
+      localStorage.removeItem(BOOKING_KEY);
+      console.log('🗑️ Reserva limpiada');
       return true;
     } catch (error) {
-      console.error('❌ Error al limpiar datos de reserva:', error);
+      console.error('❌ Error limpiando reserva:', error);
       return false;
     }
   },
+
+  updateStep: (step) => {
+    const current = bookingStorage.get();
+    if (current) {
+      current.currentStep = step;
+      bookingStorage.save(current);
+    }
+  },
+
+  update: (updates) => {
+    const current = bookingStorage.get();
+    if (current) {
+      bookingStorage.save({ ...current, ...updates });
+    }
+  },
+};
 
   /**
    * Verificar si existen datos de reserva pendientes

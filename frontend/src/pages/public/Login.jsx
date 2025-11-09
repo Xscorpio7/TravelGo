@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { bookingStorage } from "../../utils/bookingStorage";
 
 const API_URL = "http://localhost:9090/api/auth/login";
@@ -12,11 +12,13 @@ export default function Login() {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // **NUEVO: Verificar si hay reserva pendiente**
+  // **Verificar si hay reserva pendiente**
   const [hasPendingBooking, setHasPendingBooking] = useState(false);
   const [bookingSummary, setBookingSummary] = useState(null);
   const [fromBooking, setFromBooking] = useState(false);
+
   useEffect(() => {
     // Verificar si hay reserva pendiente
     const pendingBooking = bookingStorage.hasPendingBooking();
@@ -28,7 +30,7 @@ export default function Login() {
       console.log('📋 Reserva pendiente detectada en login:', summary);
     }
 
-    // ✅ Detectar si viene desde booking
+    // Detectar si viene desde booking
     if (location.state?.from === 'booking') {
       setFromBooking(true);
       console.log('🔄 Usuario viene desde flujo de reserva');
@@ -93,19 +95,18 @@ export default function Login() {
 
       console.log("✅ Sesión iniciada correctamente");
       
-      // ✅ CRÍTICO: Verificar si hay reserva pendiente o viene de booking
-      if (bookingStorage.hasPendingBooking() || fromBooking) {
-        console.log('🎫 Redirigiendo a booking con reserva pendiente...');
-        
-        // Pequeña pausa para asegurar que el localStorage está actualizado
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        navigate("/booking");
+      // ✅ CORRECCIÓN: Esperar un momento para asegurar que localStorage está sincronizado
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Verificar si hay reserva pendiente o viene de booking
+      const hasBooking = bookingStorage.hasPendingBooking();
+      
+      if (hasBooking || fromBooking) {
+        console.log('🎫 Redirigiendo a BookingFlow con reserva pendiente...');
+        navigate("/booking", { replace: true });
       } else {
         console.log('🏠 No hay reserva pendiente, redirigiendo al home');
-        setTimeout(() => {
-          navigate("/");
-        }, 500);
+        navigate("/", { replace: true });
       }
       
     } catch (err) {
@@ -126,7 +127,7 @@ export default function Login() {
           </h1>
         </div>
 
-        {/* **NUEVO: Banner de reserva pendiente** */}
+        {/* Banner de reserva pendiente */}
         {hasPendingBooking && bookingSummary && (
           <div className="w-full max-w-md mb-4 bg-blue-50 border-2 border-blue-400 rounded-lg p-4">
             <div className="flex items-center space-x-3">
@@ -142,8 +143,6 @@ export default function Login() {
                 <p className="text-xs text-blue-600 mt-1">
                   {bookingSummary.origin} → {bookingSummary.destination}
                   {bookingSummary.hasFlight && ' | ✈️ Vuelo'}
-                  {bookingSummary.hasHotel && ' | 🏨 Hotel'}
-                  {bookingSummary.hasTransport && ' | 🚗 Transporte'}
                 </p>
               </div>
             </div>
@@ -278,6 +277,7 @@ export default function Login() {
                 ¿No tienes cuenta?
                 <Link
                   to="/register"
+                  state={{ from: fromBooking ? 'booking' : null }}
                   className="text-[#5b8bd6] dark:text-[#b97cb9] font-medium hover:underline ml-1 hover:bg-transparent"
                 >
                   Regístrate
@@ -289,7 +289,6 @@ export default function Login() {
           {/* Botón volver */}
           <button
             onClick={() => {
-              // Si hay reserva pendiente, preguntar antes de salir
               if (hasPendingBooking) {
                 const confirmExit = window.confirm(
                   '¿Estás seguro? Tu reserva en progreso se guardará por 30 minutos.'

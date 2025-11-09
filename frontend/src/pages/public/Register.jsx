@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { bookingStorage } from "../../utils/bookingStorage";
 
 const API_URL_USUARIOS = "http://localhost:9090/api/usuarios";
@@ -21,12 +21,14 @@ export default function Register() {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // **NUEVO: Verificar si hay reserva pendiente**
+  // **Verificar si hay reserva pendiente**
   const [hasPendingBooking, setHasPendingBooking] = useState(false);
   const [bookingSummary, setBookingSummary] = useState(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const [fromBooking, setFromBooking] = useState(false);
+
   useEffect(() => {
     // Verificar si hay reserva pendiente
     const pendingBooking = bookingStorage.hasPendingBooking();
@@ -38,13 +40,14 @@ export default function Register() {
       console.log('📋 Reserva pendiente detectada en registro:', summary);
     }
 
-    // ✅ Detectar si viene desde booking
+    // Detectar si viene desde booking
     if (location.state?.from === 'booking') {
       setFromBooking(true);
       console.log('🔄 Usuario viene desde flujo de reserva');
     }
   }, [location]);
-   const handleChange = (e) => {
+
+  const handleChange = (e) => {
     const { name, value } = e.target;
     setForm({
       ...form,
@@ -97,11 +100,7 @@ export default function Register() {
       if (!loginResponse.ok) {
         // Si falla el login automático, redirigir a login manual
         console.log('⚠️ Login automático falló, redirigiendo a login manual');
-        
-        // ✅ Mantener la reserva guardada
-        setTimeout(() => {
-          navigate("/login", { state: { from: 'booking' } });
-        }, 1000);
+        navigate("/login", { state: { from: 'booking' }, replace: true });
         return;
       }
 
@@ -116,18 +115,18 @@ export default function Register() {
       localStorage.setItem("primerApellido", loginData.primerApellido);
       localStorage.setItem("tipoUsuario", loginData.tipoUsuario);
 
-      // ✅ CRÍTICO: Pequeña pausa para asegurar sincronización
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // ✅ CORRECCIÓN: Esperar sincronización de localStorage
+      await new Promise(resolve => setTimeout(resolve, 100));
 
-      // 4. Redirigir según si hay reserva pendiente
-      if (bookingStorage.hasPendingBooking() || fromBooking) {
+      // 4. Verificar si hay reserva pendiente
+      const hasBooking = bookingStorage.hasPendingBooking();
+      
+      if (hasBooking || fromBooking) {
         console.log('🎫 Continuando con reserva pendiente...');
-        navigate("/booking");
+        navigate("/booking", { replace: true });
       } else {
         console.log('🏠 No hay reserva pendiente, redirigiendo al home');
-        setTimeout(() => {
-          navigate("/");
-        }, 500);
+        navigate("/", { replace: true });
       }
       
     } catch (error) {
@@ -147,7 +146,7 @@ export default function Register() {
           </h1>
         </div>
 
-        {/* **NUEVO: Banner de reserva pendiente** */}
+        {/* Banner de reserva pendiente */}
         {hasPendingBooking && bookingSummary && (
           <div className="w-full max-w-md mb-4 bg-blue-50 border-2 border-blue-400 rounded-lg p-4">
             <div className="flex items-center space-x-3">
@@ -347,6 +346,7 @@ export default function Register() {
               ¿Ya tienes cuenta?{" "}
               <Link
                 to="/login"
+                state={{ from: fromBooking ? 'booking' : null }}
                 className="text-cosmic-base dark:text-[#b97cb9] font-medium hover:underline"
               >
                 Inicia sesión
