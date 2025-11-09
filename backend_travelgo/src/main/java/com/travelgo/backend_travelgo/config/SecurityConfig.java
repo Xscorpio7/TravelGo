@@ -11,7 +11,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 /**
  * Configuración de seguridad para JWT
- * SOLUCIONA: Problemas con Content-Type y CORS
+ * CORREGIDO: Sin clase JwtAuthenticationFilter interna
  */
 @Configuration
 @EnableWebSecurity
@@ -27,7 +27,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf().disable()
-            .cors().and() // ✅ IMPORTANTE: Habilitar CORS
+            .cors().and()
             .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             .and()
@@ -35,7 +35,7 @@ public class SecurityConfig {
                 // Endpoints públicos
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/admin/login").permitAll()
-                .requestMatchers("/api/usuarios", "/api/usuarios/**").permitAll() // ⚠️ Temporal
+                .requestMatchers("/api/usuarios", "/api/usuarios/**").permitAll()
                 
                 // Endpoints protegidos
                 .requestMatchers("/api/viajes/**").authenticated()

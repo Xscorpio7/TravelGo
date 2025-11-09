@@ -1,8 +1,7 @@
 package com.travelgo.backend_travelgo.controller;
 
-
-import com.travelgo.model.Viaje;
-import com.travelgo.service.ViajeService;
+import com.travelgo.backend_travelgo.model.Viaje;
+import com.travelgo.backend_travelgo.service.ViajeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +26,9 @@ public class ViajeController {
     /**
      * Crear nuevo viaje
      * ACEPTA: Content-Type: application/json
+     * 
+     * @param viaje Datos del viaje a crear
+     * @return ResponseEntity con el viaje creado y estado HTTP
      */
     @PostMapping(
         consumes = "application/json",  // ✅ CRÍTICO: Acepta JSON
@@ -46,6 +48,7 @@ public class ViajeController {
             
             if (viaje.getDestinationCode() == null || viaje.getDestinationCode().isEmpty()) {
                 response.put("error", "El destino es requerido");
+                return ResponseEntity.badRequest().body(response);
             }
             
             if (viaje.getDepartureDate() == null) {
@@ -77,6 +80,8 @@ public class ViajeController {
 
     /**
      * Obtener todos los viajes
+     * 
+     * @return ResponseEntity con lista de viajes
      */
     @GetMapping(produces = "application/json")
     public ResponseEntity<Map<String, Object>> obtenerViajes() {
@@ -101,6 +106,9 @@ public class ViajeController {
 
     /**
      * Obtener viaje por ID
+     * 
+     * @param id ID del viaje
+     * @return ResponseEntity con el viaje encontrado
      */
     @GetMapping(value = "/{id}", produces = "application/json")
     public ResponseEntity<Map<String, Object>> obtenerViajePorId(@PathVariable Long id) {
@@ -130,6 +138,10 @@ public class ViajeController {
 
     /**
      * Actualizar viaje
+     * 
+     * @param id ID del viaje a actualizar
+     * @param viaje Datos actualizados del viaje
+     * @return ResponseEntity con el viaje actualizado
      */
     @PutMapping(
         value = "/{id}",
@@ -142,7 +154,7 @@ public class ViajeController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            viaje.setId(id);
+            viaje.setId(id.intValue());
             Viaje viajeActualizado = viajeService.actualizarViaje(viaje);
             
             response.put("status", "SUCCESS");
@@ -161,6 +173,9 @@ public class ViajeController {
 
     /**
      * Eliminar viaje
+     * 
+     * @param id ID del viaje a eliminar
+     * @return ResponseEntity con mensaje de confirmación
      */
     @DeleteMapping(value = "/{id}", produces = "application/json")
     public ResponseEntity<Map<String, Object>> eliminarViaje(@PathVariable Long id) {
