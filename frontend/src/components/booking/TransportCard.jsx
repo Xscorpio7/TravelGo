@@ -1,4 +1,4 @@
-import { Car, Clock, Users, DollarSign } from 'lucide-react';
+import { Car, Clock, Users, DollarSign, MapPin } from 'lucide-react';
 
 export default function TransportCard({ transport, onSelect, isSelected }) {
   return (

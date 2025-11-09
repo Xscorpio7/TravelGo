@@ -258,10 +258,11 @@ function SearchCard() {
     }
   };
 
-  // Función para manejar reserva
+  // ✅ CORRECCIÓN PRINCIPAL: Función de reserva con verificación de autenticación
   const handleReservation = (flight) => {
     console.log("🎫 Iniciando proceso de reserva para vuelo:", flight.id);
     
+    // Preparar datos completos de la reserva
     const bookingData = {
       selectedFlight: flight,
       searchData: {
@@ -275,25 +276,49 @@ function SearchCard() {
       timestamp: new Date().toISOString(),
     };
     
+    // ✅ CRÍTICO: Verificar autenticación
     const token = localStorage.getItem('token');
     
     if (!token) {
-      console.log('🔐 Usuario no autenticado - Mostrando modal');
-      bookingStorage.save(bookingData);
-      setPendingBooking(bookingData);
-      setShowModal(true);
+      console.log('🔐 Usuario NO autenticado - Guardando reserva y mostrando modal');
+      
+      // Guardar reserva ANTES de mostrar el modal
+      const saved = bookingStorage.save(bookingData);
+      
+      if (saved) {
+        console.log('💾 Reserva guardada exitosamente:', bookingData);
+        setPendingBooking(bookingData);
+        setShowModal(true);
+      } else {
+        console.error('❌ Error al guardar reserva');
+        setError('Error al preparar la reserva');
+      }
     } else {
-      console.log('✅ Usuario autenticado - Continuando con reserva');
-      navigate('/booking', { state: bookingData });
+      console.log('✅ Usuario autenticado - Continuando directamente a BookingFlow');
+      
+      // Guardar datos para BookingFlow
+      bookingStorage.save(bookingData);
+      
+      // Navegar a BookingFlow con los datos
+      navigate('/booking', { 
+        state: { 
+          selectedFlight: flight,
+          searchData: bookingData.searchData,
+          currentStep: 1 
+        } 
+      });
     }
   };
 
   return (
     <div>
-      {/* Modal de Login */}
+      {/* Modal de Login - SE MUESTRA SOLO SI NO HAY SESIÓN */}
       <BookingModal
         isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => {
+          setShowModal(false);
+          setPendingBooking(null);
+        }}
         bookingData={pendingBooking}
       />
 

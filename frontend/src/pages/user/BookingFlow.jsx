@@ -53,6 +53,15 @@ export default function BookingFlow() {
         return;
       }
 
+      // Verificar si token está expirado
+      const tokenExpiry = localStorage.getItem('tokenExpiry');
+      if (tokenExpiry && Date.now() > parseInt(tokenExpiry)) {
+        console.log('⏰ Token expirado');
+        localStorage.clear();
+        navigate('/login', { state: { from: 'booking', expired: true } });
+        return;
+      }
+
       if (location.state?.selectedFlight) {
         console.log('✅ Datos desde location.state');
         setSelectedFlight(location.state.selectedFlight);
@@ -106,9 +115,16 @@ export default function BookingFlow() {
         {
           headers: {
             'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
           },
         }
       );
+
+      if (response.status === 401) {
+        localStorage.clear();
+        navigate('/login', { state: { from: 'booking', expired: true } });
+        return;
+      }
 
       if (!response.ok) throw new Error('Error al buscar hoteles');
 
@@ -139,9 +155,16 @@ export default function BookingFlow() {
         {
           headers: {
             'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
           },
         }
       );
+
+      if (response.status === 401) {
+        localStorage.clear();
+        navigate('/login', { state: { from: 'booking', expired: true } });
+        return;
+      }
 
       if (!response.ok) throw new Error('Error al buscar transporte');
 
@@ -197,7 +220,7 @@ export default function BookingFlow() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // ✅ CORRECCIÓN PRINCIPAL: Proceso de pago simplificado
+  // ✅ CORRECCIÓN PRINCIPAL: Manejo mejorado de errores y Content-Type
   const handlePayment = async (paymentData) => {
     setLoading(true);
     setError('');
@@ -206,6 +229,10 @@ export default function BookingFlow() {
       const token = localStorage.getItem('token');
       const usuarioId = parseInt(localStorage.getItem('usuarioId'));
 
+      if (!token) {
+        throw new Error('No hay sesión activa');
+      }
+
       console.log('💳 Iniciando proceso de reserva...');
 
       // PASO 1: Crear el viaje
@@ -213,70 +240,120 @@ export default function BookingFlow() {
       
       if (selectedFlight) {
         const viajePayload = {
-          flightOfferId: selectedFlight.id,
-          origin: searchData.origin,
-          destinationCode: searchData.destination,
-          departureDate: searchData.departureDate,
+          flightOfferId: selectedFlight.id || '',
+          origin: searchData.origin || '',
+          destinationCode: searchData.destination || '',
+          departureDate: searchData.departureDate || '',
           returnDate: searchData.returnDate || null,
           precio: parseFloat(selectedFlight.price?.total || 0),
           currency: selectedFlight.price?.currency || 'USD',
-          airline: selectedFlight.itineraries?.[0]?.segments?.[0]?.carrierCode,
-          bookableSeats: selectedFlight.numberOfBookableSeats,
+          airline: selectedFlight.itineraries?.[0]?.segments?.[0]?.carrierCode || '',
+          bookableSeats: selectedFlight.numberOfBookableSeats || 0,
           tipoViaje: 'vuelo',
           titulo: `${searchData.origin} → ${searchData.destination}`,
         };
 
-        console.log('📦 Guardando viaje:', viajePayload);
+        console.log('📦 Payload de viaje:', JSON.stringify(viajePayload, null, 2));
 
-        const viajeResponse = await fetch('http://localhost:9090/api/viajes', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(viajePayload),
-        });
+        try {
+          const viajeResponse = await fetch('http://localhost:9090/api/viajes', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: JSON.stringify(viajePayload),
+          });
 
-        if (!viajeResponse.ok) {
-          const errorText = await viajeResponse.text();
-          console.error('❌ Error al guardar viaje:', errorText);
-          throw new Error('Error al guardar el viaje');
+          console.log('📡 Status respuesta viaje:', viajeResponse.status);
+          console.log('📡 Headers respuesta:', [...viajeResponse.headers.entries()]);
+
+          if (!viajeResponse.ok) {
+            const contentType = viajeResponse.headers.get('content-type');
+            let errorMessage = 'Error al guardar el viaje';
+            
+            if (contentType && contentType.includes('application/json')) {
+              const errorData = await viajeResponse.json();
+              errorMessage = errorData.error || errorData.message || errorMessage;
+              console.error('❌ Error JSON:', errorData);
+            } else {
+              const errorText = await viajeResponse.text();
+              console.error('❌ Error texto:', errorText);
+              errorMessage = errorText || errorMessage;
+            }
+            
+            // Manejar casos específicos
+            if (viajeResponse.status === 401) {
+              localStorage.clear();
+              navigate('/login', { state: { from: 'booking', expired: true } });
+              return;
+            }
+            
+            if (viajeResponse.status === 415) {
+              throw new Error('Error de configuración del servidor. El backend no acepta JSON. Contacta al administrador.');
+            }
+            
+            throw new Error(errorMessage);
+          }
+
+          const viajeData = await viajeResponse.json();
+          viajeId = viajeData.data?.id || viajeData.id;
+          
+          if (!viajeId) {
+            console.error('⚠️ Respuesta sin ID:', viajeData);
+            throw new Error('No se recibió ID del viaje');
+          }
+          
+          console.log('✅ Viaje guardado con ID:', viajeId);
+        } catch (viajeError) {
+          console.error('❌ Error creando viaje:', viajeError);
+          throw viajeError;
         }
-
-        const viajeData = await viajeResponse.json();
-        viajeId = viajeData.data?.id || viajeData.id;
-        console.log('✅ Viaje guardado con ID:', viajeId);
       }
 
       // PASO 2: Crear la reserva
-      // ✅ IMPORTANTE: Los campos deben coincidir EXACTAMENTE con la BD
       const reservaPayload = {
-        usuarioId: usuarioId,        // → usuario_id en BD
-        viajeId: viajeId,            // → viaje_id en BD
-        alojamientoId: selectedHotel?.id || null,      // → alojamiento_id en BD
-        transporteId: selectedTransport?.id || null,    // → transporte_id en BD
-        estado: 'pendiente',          // → estado en BD
+        usuarioId: usuarioId,
+        viajeId: viajeId,
+        alojamientoId: selectedHotel?.id || null,
+        transporteId: selectedTransport?.id || null,
+        estado: 'pendiente',
       };
 
-      console.log('📦 Creando reserva:', reservaPayload);
+      console.log('📦 Payload de reserva:', JSON.stringify(reservaPayload, null, 2));
 
       const reservaResponse = await fetch('http://localhost:9090/api/reservas', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify(reservaPayload),
       });
 
       if (!reservaResponse.ok) {
         const errorText = await reservaResponse.text();
-        console.error('❌ Error del servidor:', errorText);
-        throw new Error('Error al crear la reserva');
+        console.error('❌ Error del servidor (reserva):', errorText);
+        
+        if (reservaResponse.status === 401) {
+          localStorage.clear();
+          navigate('/login', { state: { from: 'booking', expired: true } });
+          return;
+        }
+        
+        throw new Error(`Error al crear la reserva: ${errorText}`);
       }
 
       const reservaData = await reservaResponse.json();
       const reservaId = reservaData.data?.id || reservaData.id;
+      
+      if (!reservaId) {
+        console.error('⚠️ Respuesta sin ID:', reservaData);
+        throw new Error('No se recibió ID de la reserva');
+      }
+      
       console.log('✅ Reserva creada con ID:', reservaId);
 
       // PASO 3: Crear el pago
@@ -288,21 +365,26 @@ export default function BookingFlow() {
         fechaPago: new Date().toISOString().split('T')[0],
       };
 
-      console.log('💰 Creando pago:', pagoPayload);
+      console.log('💰 Payload de pago:', JSON.stringify(pagoPayload, null, 2));
 
-      const pagoResponse = await fetch('http://localhost:9090/api/pago', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(pagoPayload),
-      });
+      try {
+        const pagoResponse = await fetch('http://localhost:9090/api/pago', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify(pagoPayload),
+        });
 
-      if (!pagoResponse.ok) {
-        console.warn('⚠️ Error al crear pago, pero reserva fue exitosa');
-      } else {
-        console.log('✅ Pago registrado');
+        if (pagoResponse.ok) {
+          console.log('✅ Pago registrado');
+        } else {
+          console.warn('⚠️ Error al crear pago, pero reserva fue exitosa');
+        }
+      } catch (pagoError) {
+        console.warn('⚠️ Error en pago (no crítico):', pagoError);
       }
 
       // PASO 4: Limpiar y redirigir
@@ -320,7 +402,7 @@ export default function BookingFlow() {
       }, 2000);
 
     } catch (err) {
-      console.error('❌ Error:', err);
+      console.error('❌ Error en handlePayment:', err);
       setError(`Error: ${err.message}`);
     } finally {
       setLoading(false);
@@ -393,7 +475,10 @@ export default function BookingFlow() {
         {error && (
           <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg flex items-start gap-3 mb-6">
             <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-            <p className="text-red-800 font-medium">{error}</p>
+            <div className="flex-1">
+              <p className="text-red-800 font-medium">{error}</p>
+              <p className="text-red-600 text-sm mt-1">Si el problema persiste, contacta al administrador.</p>
+            </div>
             <button onClick={() => setError('')} className="ml-auto text-red-500">×</button>
           </div>
         )}

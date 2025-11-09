@@ -1,256 +1,184 @@
 package com.travelgo.backend_travelgo.controller;
 
-import com.travelgo.backend_travelgo.model.Viaje;
-import com.travelgo.backend_travelgo.repository.ViajeRepository;
-import java.math.BigDecimal;
+
+import com.travelgo.model.Viaje;
+import com.travelgo.service.ViajeService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
+/**
+ * Controlador para gestionar viajes
+ * SOLUCIÓN al error 415: Acepta correctamente application/json
+ */
 @RestController
 @RequestMapping("/api/viajes")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
 public class ViajeController {
-    
-    private static final Logger logger = LoggerFactory.getLogger(ViajeController.class);
-    
+
     @Autowired
-    private ViajeRepository viajeRepository;
-    
+    private ViajeService viajeService;
+
+    /**
+     * Crear nuevo viaje
+     * ACEPTA: Content-Type: application/json
+     */
+    @PostMapping(
+        consumes = "application/json",  // ✅ CRÍTICO: Acepta JSON
+        produces = "application/json"
+    )
+    public ResponseEntity<Map<String, Object>> crearViaje(@RequestBody Viaje viaje) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            System.out.println("📥 Recibiendo viaje: " + viaje);
+            
+            // Validaciones básicas
+            if (viaje.getOrigin() == null || viaje.getOrigin().isEmpty()) {
+                response.put("error", "El origen es requerido");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            if (viaje.getDestinationCode() == null || viaje.getDestinationCode().isEmpty()) {
+                response.put("error", "El destino es requerido");
+            }
+            
+            if (viaje.getDepartureDate() == null) {
+                response.put("error", "La fecha de salida es requerida");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            // Guardar viaje
+            Viaje viajeGuardado = viajeService.guardarViaje(viaje);
+            
+            System.out.println("✅ Viaje guardado con ID: " + viajeGuardado.getId());
+            
+            response.put("status", "SUCCESS");
+            response.put("data", viajeGuardado);
+            response.put("message", "Viaje creado exitosamente");
+            
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error al crear viaje: " + e.getMessage());
+            e.printStackTrace();
+            
+            response.put("status", "ERROR");
+            response.put("error", e.getMessage());
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
     /**
      * Obtener todos los viajes
-     * GET /api/viajes
      */
-    @GetMapping
-    public ResponseEntity<?> getAllViajes() {
+    @GetMapping(produces = "application/json")
+    public ResponseEntity<Map<String, Object>> obtenerViajes() {
+        Map<String, Object> response = new HashMap<>();
+        
         try {
-            logger.info("Obteniendo todos los viajes");
-            List<Viaje> viajes = viajeRepository.findAll();
+            List<Viaje> viajes = viajeService.obtenerTodos();
             
-            Map<String, Object> response = new HashMap<>();
             response.put("status", "SUCCESS");
             response.put("data", viajes);
             response.put("count", viajes.size());
             
             return ResponseEntity.ok(response);
+            
         } catch (Exception e) {
-            logger.error("Error al obtener viajes: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Error al obtener viajes: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(error);
+            response.put("status", "ERROR");
+            response.put("error", e.getMessage());
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
-    
-    /**
-     * Obtener un viaje por ID
-     * GET /api/viajes/{id}
-     */
-    @GetMapping("/{id}")
-    public ResponseEntity<?> getViajeById(@PathVariable Integer id) {
-        try {
-            logger.info("Obteniendo viaje: {}", id);
-            Optional<Viaje> viaje = viajeRepository.findById(id);
-            
-            if (viaje.isEmpty()) {
-                Map<String, String> error = new HashMap<>();
-                error.put("error", "Viaje no encontrado");
-                return ResponseEntity.status(404).body(error);
-            }
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("status", "SUCCESS");
-            response.put("data", viaje.get());
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("Error al obtener viaje: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Error al obtener viaje: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(error);
-        }
-    }
-    
-    /**
-     * Crear un nuevo viaje
-     * POST /api/viajes
-     */
-    @PostMapping
-    public ResponseEntity<?> createViaje(@RequestBody Viaje viajeDetails) {
-        try {
-            logger.info("Creando nuevo viaje de vuelo: {} -> {}", viajeDetails.getOrigin(), viajeDetails.getDestination());
-            
-            if (viajeDetails.getOrigin() == null || viajeDetails.getOrigin().isEmpty()) {
-                Map<String, String> error = new HashMap<>();
-                error.put("error", "El origen es requerido");
-                return ResponseEntity.badRequest().body(error);
-            }
-            
-            if (viajeDetails.getDestination() == null || viajeDetails.getDestination().isEmpty()) {
-                Map<String, String> error = new HashMap<>();
-                error.put("error", "El destino es requerido");
-                return ResponseEntity.badRequest().body(error);
-            }
-            
-            if (viajeDetails.getPrecio() == null || viajeDetails.getPrecio().compareTo(BigDecimal.ZERO) <= 0) {
-    Map<String, String> error = new HashMap<>();
-    error.put("error", "El precio debe ser mayor a 0");
-    return ResponseEntity.badRequest().body(error);
-}
 
+    /**
+     * Obtener viaje por ID
+     */
+    @GetMapping(value = "/{id}", produces = "application/json")
+    public ResponseEntity<Map<String, Object>> obtenerViajePorId(@PathVariable Long id) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            Viaje viaje = viajeService.obtenerPorId(id);
             
-            Viaje viajeGuardado = viajeRepository.save(viajeDetails);
+            if (viaje == null) {
+                response.put("status", "ERROR");
+                response.put("error", "Viaje no encontrado");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            }
             
-            logger.info("Viaje creado exitosamente: {}", viajeGuardado.getId());
-            
-            Map<String, Object> response = new HashMap<>();
             response.put("status", "SUCCESS");
-            response.put("message", "Viaje creado correctamente");
-            response.put("data", viajeGuardado);
+            response.put("data", viaje);
             
             return ResponseEntity.ok(response);
+            
         } catch (Exception e) {
-            logger.error("Error al crear viaje: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Error al crear viaje: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(error);
+            response.put("status", "ERROR");
+            response.put("error", e.getMessage());
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
-    
+
     /**
-     * Actualizar un viaje existente
-     * PUT /api/viajes/{id}
+     * Actualizar viaje
      */
-    @PutMapping("/{id}")
-    public ResponseEntity<?> updateViaje(@PathVariable Integer id, @RequestBody Viaje viajeDetails) {
+    @PutMapping(
+        value = "/{id}",
+        consumes = "application/json",
+        produces = "application/json"
+    )
+    public ResponseEntity<Map<String, Object>> actualizarViaje(
+            @PathVariable Long id,
+            @RequestBody Viaje viaje) {
+        Map<String, Object> response = new HashMap<>();
+        
         try {
-            logger.info("Actualizando viaje: {}", id);
+            viaje.setId(id);
+            Viaje viajeActualizado = viajeService.actualizarViaje(viaje);
             
-            Optional<Viaje> optionalViaje = viajeRepository.findById(id);
-            
-            if (optionalViaje.isEmpty()) {
-                Map<String, String> error = new HashMap<>();
-                error.put("error", "Viaje no encontrado");
-                return ResponseEntity.status(404).body(error);
-            }
-            
-            Viaje viaje = optionalViaje.get();
-            
-            // Actualizar campos de vuelo
-            if (viajeDetails.getFlightOfferId() != null) {
-                viaje.setFlightOfferId(viajeDetails.getFlightOfferId());
-            }
-            if (viajeDetails.getOrigin() != null) {
-                viaje.setOrigin(viajeDetails.getOrigin());
-            }
-            if (viajeDetails.getDestination() != null) {
-                viaje.setDestination(viajeDetails.getDestination());
-            }
-            if (viajeDetails.getDepartureDate() != null) {
-                viaje.setDepartureDate(viajeDetails.getDepartureDate());
-            }
-            if (viajeDetails.getReturnDate() != null) {
-                viaje.setReturnDate(viajeDetails.getReturnDate());
-            }
-            if (viajeDetails.getPrecio()!= null && viajeDetails.getPrecio().compareTo(BigDecimal.ZERO) > 0) {
-    viaje.setPrecio(viajeDetails.getPrecio());
-}
-            if (viajeDetails.getCurrency() != null) {
-                viaje.setCurrency(viajeDetails.getCurrency());
-            }
-            if (viajeDetails.getAirline() != null) {
-                viaje.setAirline(viajeDetails.getAirline());
-            }
-            if (viajeDetails.getFlightDetails() != null) {
-                viaje.setFlightDetails(viajeDetails.getFlightDetails());
-            }
-            
-            Viaje viajeActualizado = viajeRepository.save(viaje);
-            
-            logger.info("Viaje actualizado exitosamente: {}", id);
-            
-            Map<String, Object> response = new HashMap<>();
             response.put("status", "SUCCESS");
-            response.put("message", "Viaje actualizado correctamente");
             response.put("data", viajeActualizado);
+            response.put("message", "Viaje actualizado exitosamente");
             
             return ResponseEntity.ok(response);
+            
         } catch (Exception e) {
-            logger.error("Error al actualizar viaje: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Error al actualizar viaje: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(error);
+            response.put("status", "ERROR");
+            response.put("error", e.getMessage());
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
-    
+
     /**
-     * Eliminar un viaje por ID
-     * DELETE /api/viajes/{id}
+     * Eliminar viaje
      */
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteViaje(@PathVariable Integer id) {
+    @DeleteMapping(value = "/{id}", produces = "application/json")
+    public ResponseEntity<Map<String, Object>> eliminarViaje(@PathVariable Long id) {
+        Map<String, Object> response = new HashMap<>();
+        
         try {
-            logger.info("Eliminando viaje: {}", id);
+            viajeService.eliminarViaje(id);
             
-            if (!viajeRepository.existsById(id)) {
-                Map<String, String> error = new HashMap<>();
-                error.put("error", "Viaje no encontrado");
-                return ResponseEntity.status(404).body(error);
-            }
-            
-            viajeRepository.deleteById(id);
-            
-            logger.info("Viaje eliminado exitosamente: {}", id);
-            
-            Map<String, Object> response = new HashMap<>();
             response.put("status", "SUCCESS");
-            response.put("message", "Viaje eliminado correctamente");
+            response.put("message", "Viaje eliminado exitosamente");
             
             return ResponseEntity.ok(response);
+            
         } catch (Exception e) {
-            logger.error("Error al eliminar viaje: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Error al eliminar viaje: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(error);
-        }
-    }
-    
-    /**
-     * Buscar viajes por origen y destino
-     * GET /api/viajes/search?origin=MAD&destination=ATH
-     */
-    @GetMapping("/search")
-    public ResponseEntity<?> searchViajes(
-            @RequestParam(required = false) String origin,
-            @RequestParam(required = false) String destination) {
-        try {
-            logger.info("Buscando viajes: origin={}, destination={}", origin, destination);
+            response.put("status", "ERROR");
+            response.put("error", e.getMessage());
             
-            List<Viaje> viajes;
-            
-            if (origin != null && destination != null) {
-                viajes = viajeRepository.findByOriginAndDestino(origin, destination);
-            } else {
-                viajes = viajeRepository.findAll();
-            }
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("status", "SUCCESS");
-            response.put("data", viajes);
-            response.put("count", viajes.size());
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("Error al buscar viajes: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Error al buscar viajes: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(error);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 }
