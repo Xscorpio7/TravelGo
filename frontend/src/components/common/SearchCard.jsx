@@ -169,7 +169,7 @@ function SearchCard() {
     }
   };
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -191,7 +191,7 @@ function SearchCard() {
         throw new Error("Por favor selecciona una ciudad válida de las sugerencias o ingresa un código IATA de 3 letras");
       }
 
-      console.log("Enviando búsqueda:", {
+      console.log("✈️ Enviando búsqueda:", {
         origin: finalOriginCode,
         destination: finalDestinationCode,
         departure: formData.departureDate,
@@ -210,48 +210,46 @@ function SearchCard() {
         queryParams.append('returnDate', formData.returnDate);
       }
       
-      const response = await fetch(`http://localhost:9090/flights/search?${queryParams}`, {
+      const url = `http://localhost:9090/flights/search?${queryParams}`;
+      console.log("📡 URL de búsqueda:", url);
+      
+      const response = await fetch(url, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
         }
       });
       
-      let data;
-      const contentType = response.headers.get("content-type");
-      
-      if (contentType && contentType.indexOf("application/json") !== -1) {
-        const responseText = await response.text();
-        console.log("Respuesta raw:", responseText);
-        
-        try {
-          data = JSON.parse(responseText);
-        } catch (jsonError) {
-          console.error("Error parseando JSON:", jsonError);
-          throw new Error("Respuesta del servidor no es JSON válido");
-        }
-      } else {
-        const text = await response.text();
-        console.error("Respuesta no es JSON:", text);
-        throw new Error("El servidor no devolvió JSON válido");
-      }
-      
-      console.log("Respuesta parseada:", data);
+      console.log("📥 Status de respuesta:", response.status);
       
       if (!response.ok) {
-        throw new Error(data.error || `Error ${response.status}: ${response.statusText}`);
+        if (response.status === 403) {
+          throw new Error("⛔ Acceso denegado. El servidor está bloqueando la petición. Verifica la configuración de seguridad en SecurityConfig.java");
+        }
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
+      
+      const contentType = response.headers.get("content-type");
+      
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("❌ Respuesta no es JSON:", text);
+        throw new Error("El servidor no devolvió JSON válido. Respuesta recibida: " + text.substring(0, 100));
+      }
+      
+      const data = await response.json();
+      console.log("✅ Respuesta parseada:", data);
       
       if (data.status === "SUCCESS") {
         setResults(data.data || []);
-        console.log("Vuelos encontrados:", data.data);
+        console.log(`✅ ${data.data.length} vuelos encontrados`);
       } else {
         throw new Error(data.error || "Error desconocido en la búsqueda");
       }
       
     } catch (error) {
-      console.error("Error al buscar vuelos:", error);
-      setError("Error al buscar vuelos: " + error.message);
+      console.error("❌ Error al buscar vuelos:", error);
+      setError(error.message || "Error al buscar vuelos");
       setResults([]);
     } finally {
       setLoading(false);

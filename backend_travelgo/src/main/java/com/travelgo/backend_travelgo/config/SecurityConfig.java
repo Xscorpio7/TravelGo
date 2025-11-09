@@ -11,7 +11,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 /**
  * Configuración de seguridad para JWT
- * CORREGIDO: Sin clase JwtAuthenticationFilter interna
+ * ✅ CORREGIDO: Endpoints de búsqueda son PÚBLICOS
  */
 @Configuration
 @EnableWebSecurity
@@ -32,23 +32,37 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             .and()
             .authorizeHttpRequests()
-                // Endpoints públicos
+                // ✅ ENDPOINTS PÚBLICOS - Autenticación
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/admin/login").permitAll()
                 .requestMatchers("/api/usuarios", "/api/usuarios/**").permitAll()
                 
-                // Endpoints protegidos
+                // ✅ CRÍTICO: ENDPOINTS PÚBLICOS - Búsqueda (SIN AUTENTICACIÓN)
+                .requestMatchers(HttpMethod.GET, "/flights/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/hotels/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/transporte/search-transfers").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/transporte/disponibles").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/transporte/por-tipo").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/transporte/buscar").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/transporte/example").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/transporte/test").permitAll()
+                
+                // ✅ ENDPOINTS PROTEGIDOS - Reservas (REQUIEREN AUTENTICACIÓN)
                 .requestMatchers("/api/viajes/**").authenticated()
                 .requestMatchers("/api/reservas/**").authenticated()
                 .requestMatchers("/api/pago/**").authenticated()
-                .requestMatchers("/hotels/**").authenticated()
-                .requestMatchers("/flights/**").authenticated()
-                .requestMatchers("/api/transporte/**").authenticated()
+                .requestMatchers("/api/bookings/**").authenticated()
                 
-                // Admin
+                // ✅ ENDPOINTS PROTEGIDOS - Transporte (acciones que modifican datos)
+                .requestMatchers(HttpMethod.POST, "/api/transporte").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/transporte/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/transporte/**").authenticated()
+                
+                // ✅ ADMIN - Solo administradores
                 .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
                 .requestMatchers("/api/administrador/**").hasAuthority("ROLE_ADMIN")
                 
+                // Por defecto, todo requiere autenticación
                 .anyRequest().authenticated()
             .and()
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
