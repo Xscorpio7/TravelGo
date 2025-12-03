@@ -440,51 +440,160 @@ export default function UserProfile() {
 
             {/* Tab: Información Personal */}
             {activeTab === 'info' && (
-              <div>
-                <div className="flex justify-between items-center mb-6">
-                  <div>
-                    <h2 className="text-2xl font-bold text-astronaut-dark">
-                      Información Personal
-                    </h2>
-                    <p className="text-gray-600 text-sm mt-1">
-                      Gestiona tu información de contacto y preferencias
-                    </p>
-                  </div>
-                  {!editMode ? (
-                    <button
-                      onClick={handleEdit}
-                      className="flex items-center gap-2 px-4 py-2 bg-cosmic-base text-white rounded-lg hover:bg-cosmic-dark transition-colors font-medium"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                      Editar
-                    </button>
-                  ) : (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleCancel}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors font-medium"
-                      >
-                        <X className="w-4 h-4" />
-                        Cancelar
-                      </button>
-                      <button
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="flex items-center gap-2 px-4 py-2 bg-flame-base text-white rounded-lg hover:bg-flame-dark transition-colors disabled:opacity-50 font-medium"
-                      >
-                        <Save className="w-4 h-4" />
-                        {saving ? 'Guardando...' : 'Guardar'}
-                      </button>
-                    </div>
-                  )}
-                </div>
+  <div>
+    <div className="flex justify-between items-center mb-6">
+      <div>
+        <h2 className="text-2xl font-bold text-astronaut-dark">
+          Información Personal
+        </h2>
+        <p className="text-gray-600 text-sm mt-1">
+          Gestiona tu información de contacto y preferencias
+        </p>
+      </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Campos del formulario - igual que antes */}
-                  {/* ... mantener todos los campos como están ... */}
-                </div>
-              </div>
-            )}
+      {!editMode ? (
+        <button
+          onClick={handleEdit}
+          className="flex items-center gap-2 px-4 py-2 bg-cosmic-base text-white rounded-lg hover:bg-cosmic-dark transition-colors font-medium"
+        >
+          <Edit2 className="w-4 h-4" />
+          Editar
+        </button>
+      ) : (
+        <div className="flex gap-2">
+          <button
+            onClick={handleCancel}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors font-medium"
+          >
+            <X className="w-4 h-4" />
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 bg-flame-base text-white rounded-lg hover:bg-flame-dark transition-colors disabled:opacity-50 font-medium"
+          >
+            <Save className="w-4 h-4" />
+            {saving ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
+      )}
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Primer Nombre */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Primer nombre</label>
+        <input
+          type="text"
+          name="primerNombre"
+          value={editData.primerNombre || ''}
+          disabled={true}
+          className="mt-1 w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed"
+        />
+      </div>
+
+      {/* Primer Apellido */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Primer apellido</label>
+        <input
+          type="text"
+          name="primerApellido"
+          value={editData.primerApellido || ''}
+          disabled={true}
+          className="mt-1 w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed"
+        />
+      </div>
+
+      {/* Teléfono */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Teléfono</label>
+        <input
+          type="tel"
+          name="telefono"
+          value={editData.telefono || ''}
+          onChange={(e) => setEditData({ ...editData, telefono: e.target.value })}
+          disabled={!editMode}
+          className={`mt-1 w-full border rounded-lg px-3 py-2 ${
+            editMode
+              ? 'border-gray-300 focus:border-cosmic-base focus:ring-cosmic-base'
+              : 'bg-gray-100 cursor-not-allowed'
+          }`}
+          placeholder="Ej: +57 3101234567"
+        />
+      </div>
+
+      {/* Nacionalidad */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Nacionalidad</label>
+        <input
+          type="text"
+          name="nacionalidad"
+          value={editData.nacionalidad || ''}
+          onChange={(e) => setEditData({ ...editData, nacionalidad: e.target.value })}
+          disabled={!editMode}
+          className={`mt-1 w-full border rounded-lg px-3 py-2 ${
+            editMode
+              ? 'border-gray-300 focus:border-cosmic-base focus:ring-cosmic-base'
+              : 'bg-gray-100 cursor-not-allowed'
+          }`}
+          placeholder="Ej: Colombiana"
+        />
+      </div>
+
+      {/* Fecha de nacimiento */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Fecha de nacimiento</label>
+        <input
+          type="date"
+          name="fechaNacimiento"
+          value={editData.fechaNacimiento || user.fechaNacimiento || ''}
+          onChange={(e) => setEditData({ ...editData, fechaNacimiento: e.target.value })}
+          disabled={!editMode}
+          className={`mt-1 w-full border rounded-lg px-3 py-2 ${
+            editMode
+              ? 'border-gray-300 focus:border-cosmic-base focus:ring-cosmic-base'
+              : 'bg-gray-100 cursor-not-allowed'
+          }`}
+        />
+      </div>
+
+      {/* Género */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Género</label>
+        <select
+          name="genero"
+          value={editData.genero || user.genero || ''}
+          onChange={(e) => setEditData({ ...editData, genero: e.target.value })}
+          disabled={!editMode}
+          className={`mt-1 w-full border rounded-lg px-3 py-2 ${
+            editMode
+              ? 'border-gray-300 focus:border-cosmic-base focus:ring-cosmic-base'
+              : 'bg-gray-100 cursor-not-allowed'
+          }`}
+        >
+          <option value="">Selecciona...</option>
+          <option value="Masculino">Masculino</option>
+          <option value="Femenino">Femenino</option>
+          <option value="Otro">Otro</option>
+        </select>
+      </div>
+
+      {/* Email */}
+      <div className="md:col-span-2">
+        <label className="block text-sm font-medium text-gray-700">Correo electrónico</label>
+        <input
+          type="email"
+          name="email"
+          value={user.credencial?.correo || ''}
+          disabled={true}
+          className="mt-1 w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed"
+        />
+      </div>
+    </div>
+  </div>
+)}
+
 
             {/* Tab: Reservas */}
             {activeTab === 'reservas' && (

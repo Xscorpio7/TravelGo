@@ -1,9 +1,61 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { bookingStorage } from "../../utils/bookingStorage";
+import * as _bookingModule from "../../utils/Bookingstorage";
 
 const API_URL = "http://localhost:9090/api/auth/login";
+// Normalizar exportaciones (admite default, named o export directo)
+const bookingStorage = (() => {
+  if (!_bookingModule) return null;
+  if (_bookingModule.bookingStorage) return _bookingModule.bookingStorage;
+  if (_bookingModule.default) return _bookingModule.default;
+  return _bookingModule;
+})();
 
+// ✅ Wrappers seguros para evitar errores si faltan funciones
+const safeHasPendingBooking = () => {
+  try {
+    if (!bookingStorage) return false;
+    if (typeof bookingStorage.hasPendingBooking === "function") {
+      return Boolean(bookingStorage.hasPendingBooking());
+    }
+    if (typeof bookingStorage.get === "function") {
+      return Boolean(bookingStorage.get());
+    }
+    return false;
+  } catch (err) {
+    console.warn("safeHasPendingBooking: error ->", err);
+    return false;
+  }
+};
+
+const safeGetSummary = () => {
+  try {
+    if (!bookingStorage) return null;
+    if (typeof bookingStorage.getSummary === "function") {
+      return bookingStorage.getSummary();
+    }
+    if (typeof bookingStorage.get === "function") {
+      const data = bookingStorage.get();
+      if (!data) return null;
+
+      const origin = data.origin || data.origen || data.from || "";
+      const destination = data.destination || data.destino || data.to || "";
+      const hasFlight = !!(data.hasFlight || data.vuelo);
+
+      return {
+        origin,
+        destination,
+        hasFlight,
+        summaryText: `${origin || "—"} → ${destination || "—"}`,
+        raw: data,
+      };
+    }
+    return null;
+  } catch (err) {
+    console.warn("safeGetSummary: error ->", err);
+    return null;
+  }
+};
 export default function Login() {
   const [correo, setCorreo] = useState("");
   const [contrasena, setContrasena] = useState("");

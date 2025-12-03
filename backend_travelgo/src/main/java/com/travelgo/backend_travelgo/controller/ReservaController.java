@@ -1,15 +1,11 @@
 package com.travelgo.backend_travelgo.controller;
 
-import com.travelgo.backend_travelgo.model.Alojamiento;
-import com.travelgo.backend_travelgo.model.Pago;
 import com.travelgo.backend_travelgo.model.Reserva;
-import com.travelgo.backend_travelgo.model.Usuario;
-import com.travelgo.backend_travelgo.model.Viaje;
 import com.travelgo.backend_travelgo.repository.ReservaRepository;
 import com.travelgo.backend_travelgo.service.ReservaService;
 import com.travelgo.backend_travelgo.util.JwtUtil;
-import java.time.LocalDate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
@@ -18,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/reservas")
@@ -316,102 +311,4 @@ public class ReservaController {
             return ResponseEntity.internalServerError().body(error);
         }
     }
-    @PostMapping("/crear-completa")
-public ResponseEntity<?> crearReservaCompleta(@RequestBody Map<String, Object> payload) {
-    try {
-        System.out.println("📦 Recibiendo payload completo de reserva...");
-        
-        // Extraer datos del payload
-        Integer usuarioId = (Integer) payload.get("usuarioId");
-        Map<String, Object> viajeData = (Map<String, Object>) payload.get("viajeData");
-        Integer alojamientoId = (Integer) payload.get("alojamientoId");
-        Integer transporteId = (Integer) payload.get("transporteId");
-        Map<String, Object> pagoData = (Map<String, Object>) payload.get("pagoData");
-        Map<String, Object> pasajeroData = (Map<String, Object>) payload.get("pasajeroData");
-        
-        // 1. Crear el viaje
-        System.out.println("✈️ Creando viaje...");
-        Viaje viaje = new Viaje();
-        viaje.setFlightOfferId((String) viajeData.get("flightOfferId"));
-        viaje.setOrigin((String) viajeData.get("origin"));
-        viaje.setDestinationCode((String) viajeData.get("destinationCode"));
-        viaje.setDepartureDate((String) viajeData.get("departureDate"));
-        viaje.setReturnDate((String) viajeData.get("returnDate"));
-        viaje.setPrecio(Double.parseDouble(viajeData.get("precio").toString()));
-        viaje.setCurrency((String) viajeData.get("currency"));
-        viaje.setAirline((String) viajeData.get("airline"));
-        viaje.setBookableSeats((Integer) viajeData.get("bookableSeats"));
-        viaje.setTipoViaje((String) viajeData.get("tipoViaje"));
-        viaje.setTitulo((String) viajeData.get("titulo"));
-        
-        Viaje ViajeGuardado =viajeService.guardarViaje(viaje);
-        System.out.println("✅ Viaje guardado con ID: " + viajeGuardado.getId());
-        
-        // 2. Crear la reserva
-        System.out.println("📋 Creando reserva...");
-        Reserva reserva = new Reserva();
-        
-        Usuario usuario = usuarioService.obtenerUsuarioPorId(usuarioId)
-            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-        reserva.setUsuario(usuario);
-        
-        reserva.setViaje(viajeGuardado);
-        
-        if (alojamientoId != null) {
-            Alojamiento alojamiento = alojamientoService.obtenerAlojamientoPorId(alojamientoId)
-                .orElse(null);
-            reserva.setAlojamiento(alojamiento);
-        }
-        
-        if (transporteId != null) {
-            Transporte transporte = transporteService.obtenerTransportePorId(transporteId)
-                .orElse(null);
-            reserva.setTransporte(transporte);
-        }
-        
-        reserva.setEstado("confirmada");
-        reserva.setFechaReserva(LocalDate.now());
-        
-        Reserva ReservaGuardada = reservaService.crearReserva(reserva);
-        System.out.println("✅ Reserva guardada con ID: " + reservaGuardada.getId());
-        
-        // 3. Crear el pago
-        System.out.println("💰 Registrando pago...");
-        Pago pago = new Pago();
-        pago.setReserva(reservaGuardada);
-        pago.setMetodoPago((String) pagoData.get("metodoPago"));
-        pago.setMonto(Double.parseDouble(pagoData.get("monto").toString()));
-        pago.setEstado((String) pagoData.get("estado"));
-        pago.setFechaPago(LocalDate.parse((String) pagoData.get("fechaPago")));
-        
-        Pago pagoGuardado = pagoService.guardarPago(pago);
-        System.out.println("✅ Pago registrado con ID: " + pagoGuardado.getId());
-        
-        // 4. Preparar respuesta
-        Map<String, Object> response = new HashMap<>();
-        response.put("reservaId", reservaGuardada.getId());
-        response.put("viajeId", viajeGuardado.getId());
-        response.put("pagoId", pagoGuardado.getId());
-        response.put("estado", "confirmada");
-        response.put("mensaje", "Reserva creada exitosamente");
-        
-        Map<String, Object> finalResponse = new HashMap<>();
-        finalResponse.put("status", "SUCCESS");
-        finalResponse.put("message", "Reserva completa creada exitosamente");
-        finalResponse.put("data", response);
-        
-        System.out.println("🎉 Proceso completo exitoso");
-        return ResponseEntity.ok(finalResponse);
-        
-    } catch (Exception e) {
-        System.err.println("❌ Error en crear-completa: " + e.getMessage());
-        e.printStackTrace();
-        
-        Map<String, String> errorResponse = new HashMap<>();
-        errorResponse.put("status", "ERROR");
-        errorResponse.put("error", e.getMessage());
-        
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-    }
-}
 }

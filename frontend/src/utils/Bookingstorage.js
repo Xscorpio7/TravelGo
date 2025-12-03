@@ -1,8 +1,10 @@
+// src/utils/bookingStorage.js
 // Utilidad para manejar el almacenamiento temporal de reservas
+
 const BOOKING_KEY = 'pendingBooking';
 const BOOKING_EXPIRY = 30 * 60 * 1000; // 30 minutos
 
-export const bookingStorage = {
+const bookingStorage = {
   save: (bookingData) => {
     try {
       const data = {
@@ -23,20 +25,20 @@ export const bookingStorage = {
     try {
       const stored = localStorage.getItem(BOOKING_KEY);
       if (!stored) {
-        console.log('📭 No hay reserva guardada');
+        // console.log('📭 No hay reserva guardada');
         return null;
       }
 
       const data = JSON.parse(stored);
-      
+
       // Verificar si expiró
-      if (Date.now() > data.expiresAt) {
+      if (data.expiresAt && Date.now() > data.expiresAt) {
         console.log('⏰ Reserva expirada');
         bookingStorage.clear();
         return null;
       }
 
-      console.log('✅ Reserva recuperada:', data);
+      // Normalizar: asegurar campos esperados
       return data;
     } catch (error) {
       console.error('❌ Error recuperando reserva:', error);
@@ -55,74 +57,80 @@ export const bookingStorage = {
     }
   },
 
-  updateStep: (step) => {
-    const current = bookingStorage.get();
-    if (current) {
-      current.currentStep = step;
-      bookingStorage.save(current);
-    }
-  },
-
   update: (updates) => {
-    const current = bookingStorage.get();
-    if (current) {
-      bookingStorage.save({ ...current, ...updates });
+    try {
+      const current = bookingStorage.get();
+      if (!current) return false;
+      const merged = { ...current, ...updates, timestamp: Date.now() };
+      return bookingStorage.save(merged);
+    } catch (err) {
+      console.error('❌ Error en update:', err);
+      return false;
     }
   },
-};
 
-  /**
-   * Verificar si existen datos de reserva pendientes
-   */
-  hasPendingBooking: () => {
-    const data = bookingStorage.get();
-    const hasPending = data !== null && data.selectedFlight !== null;
-    console.log('🔍 ¿Tiene reserva pendiente?', hasPending);
-    return hasPending;
-  },
-
-  /**
-   * Obtener resumen de la reserva pendiente
-   */
-  getSummary: () => {
-    const data = bookingStorage.get();
-    if (!data) {
-      console.log('ℹ️ No hay resumen disponible');
-      return null;
-    }
-
-    const summary = {
-      hasFlight: !!data.selectedFlight, // ✅ CORREGIDO el typo
-      hasHotel: !!data.selectedHotel,
-      hasTransport: !!data.selectedTransport,
-      currentStep: data.currentStep || 1,
-      destination: data.searchData?.destination || 'N/A',
-      origin: data.searchData?.origin || 'N/A',
-      departureDate: data.searchData?.departureDate || 'N/A',
-      returnDate: data.searchData?.returnDate || null,
-      adults: data.searchData?.adults || 1,
-    };
-
-    console.log('📋 Resumen generado:', summary);
-    return summary;
-  },
-
-  /**
-   * Actualizar paso actual sin perder datos
-   */
   updateStep: (newStep) => {
     try {
       const current = bookingStorage.get();
       if (!current) return false;
-
       current.currentStep = newStep;
-      current.timestamp = new Date().getTime(); // Renovar tiempo
-      localStorage.setItem(BOOKING_STORAGE_KEY, JSON.stringify(current));
-      console.log(`✅ Paso actualizado a: ${newStep}`);
-      return true;
-    } catch (error) {
-      console.error('❌ Error al actualizar paso:', error);
+      current.timestamp = Date.now();
+      return bookingStorage.save(current);
+    } catch (err) {
+      console.error('❌ Error en updateStep:', err);
       return false;
     }
   },
+
+  // --- Funciones útiles añadidas ---
+  hasPendingBooking: () => {
+    try {
+      const data = bookingStorage.get();
+      if (!data) return false;
+      // Considerar que hay reserva pendiente si hay cualquier selección importante
+      const hasSelected =
+        !!data.selectedFlight || !!data.selectedHotel || !!data.selectedTransport;
+      const notExpired = !(data.expiresAt && Date.now() > data.expiresAt);
+      const hasPending = hasSelected && notExpired;
+      console.log('🔍 ¿Tiene reserva pendiente?', hasPending);
+      return hasPending;
+    } catch (err) {
+      console.warn('safe hasPendingBooking error:', err);
+      return false;
+    }
+  },
+
+  getSummary: () => {
+    try {
+      const data = bookingStorage.get();
+      if (!data) {
+        // console.log('ℹ️ No hay resumen disponible');
+        return null;
+      }
+
+      const summary = {
+        hasFlight: !!data.selectedFlight,
+        hasHotel: !!data.selectedHotel,
+        hasTransport: !!data.selectedTransport,
+        currentStep: data.currentStep || 1,
+        destination: data.searchData?.destination || data.destination || 'N/A',
+        origin: data.searchData?.origin || data.origin || 'N/A',
+        departureDate: data.searchData?.departureDate || data.departureDate || 'N/A',
+        returnDate: data.searchData?.returnDate || data.returnDate || null,
+        adults: data.searchData?.adults ?? data.adults ?? 1,
+        raw: data,
+        summaryText: `${data.searchData?.origin || data.origin || '—'} → ${data.searchData?.destination || data.destination || '—'}`,
+      };
+
+      console.log('📋 Resumen generado:', summary);
+      return summary;
+    } catch (err) {
+      console.error('❌ Error generando resumen:', err);
+      return null;
+    }
+  },
 };
+
+// Exportar named y default para compatibilidad con distintas importaciones
+export { bookingStorage };
+export default bookingStorage;
