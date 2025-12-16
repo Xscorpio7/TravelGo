@@ -9,6 +9,8 @@ function Navbar() {
   const [userInitials, setUserInitials] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  
+
   useEffect(() => {
     // Verificar si hay sesión activa
     const token = localStorage.getItem("token");
@@ -25,6 +27,32 @@ function Navbar() {
     } else {
       setIsLoggedIn(false);
     }
+
+      const handleStorageChange = () => {
+  const token = localStorage.getItem("token");
+  const primerNombre = localStorage.getItem("primerNombre");
+  const primerApellido = localStorage.getItem("primerApellido");
+
+  if (token && primerNombre && primerApellido) {
+    setIsLoggedIn(true);
+    setUserName(`${primerNombre} ${primerApellido}`);
+    const iniciales = `${primerNombre.charAt(0)}${primerApellido.charAt(0)}`.toUpperCase();
+    setUserInitials(iniciales);
+  } else {
+    setIsLoggedIn(false);
+    setUserName("");
+    setUserInitials("");
+  }
+};
+
+// Listener para cambios en localStorage
+window.addEventListener('storage', handleStorageChange);
+
+// Cleanup
+return () => {
+  window.removeEventListener('storage', handleStorageChange);
+};
+
   }, []);
 
   const handleProfileClick = () => {

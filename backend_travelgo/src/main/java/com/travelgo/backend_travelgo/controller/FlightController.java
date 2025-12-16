@@ -86,11 +86,11 @@ public class FlightController {
             @RequestParam String origin,
             @RequestParam String destination,
             @RequestParam String departure,
-            @RequestParam(required = false) String returnDate,  // ⭐ OPCIONAL
+            @RequestParam(required = false) String returnDate,  
             @RequestParam(defaultValue = "1") int adults,
             @RequestParam(defaultValue = "10") int max) {
 
-        logger.info("🛫 Búsqueda de vuelos: {} -> {}, Salida: {}, Regreso: {}, Adultos: {}", 
+        logger.info("Búsqueda de vuelos: {} -> {}, Salida: {}, Regreso: {}, Adultos: {}", 
                    origin, destination, departure, returnDate != null ? returnDate : "N/A", adults);
 
         try {
@@ -146,7 +146,7 @@ public class FlightController {
                     max
                 );
             } else {
-                logger.info("➡️ Búsqueda SOLO IDA");
+                logger.info("Búsqueda SOLO IDA");
                 flights = amadeusConnect.searchFlights(
                     origin.toUpperCase().trim(), 
                     destination.toUpperCase().trim(), 
@@ -202,7 +202,7 @@ public class FlightController {
             }
             
             FlightOfferSearch[] flights = amadeusConnect.searchFlights(
-                "MAD", "ATH", "2025-01-15", 1, 1
+                "MAD", "ATH", "2025-12-31", 1, 1
             );
             
             if (flights.length > 0 && flights[0].getResponse().getStatusCode() != 200) {

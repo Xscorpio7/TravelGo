@@ -32,24 +32,32 @@ export default function UserProfile() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
 
   // Detectar si viene de una reserva exitosa
   useEffect(() => {
-    if (location.state?.bookingSuccess) {
-      setActiveTab('reservas');
-      setSuccess(`🎉 ¡Reserva confirmada! Número: ${location.state.confirmationNumber}`);
-      
-      // Limpiar el estado después de mostrar
-      window.history.replaceState({}, document.title);
-      
-      // Auto-ocultar después de 5 segundos
-      setTimeout(() => setSuccess(''), 5000);
-    }
-  }, [location]);
+  if (location.state?.bookingSuccess) {
+    setActiveTab('reservas');
+    setSuccess(`🎉 ¡Reserva confirmada! Número: ${location.state.confirmationNumber}`);
+    
+    // Limpiar el estado
+    window.history.replaceState({}, document.title);
+    
+    // ✅ AGREGAR: Recargar reservas para mostrar la nueva
+    setTimeout(() => {
+      loadReservasCompletas();
+    }, 500);
+    
+    // Auto-ocultar mensaje después de 5 segundos
+    setTimeout(() => setSuccess(''), 5000);
+  }
+}, [location]);
 
   // Usuario actual
   const [user, setUser] = useState(null);
   const [reservas, setReservas] = useState([]);
+  const [reservasCompletas, setReservasCompletas] = useState([]); 
+const [loadingReservas, setLoadingReservas] = useState(false);  
 
   // Modo edición
   const [editMode, setEditMode] = useState(false);
@@ -66,12 +74,13 @@ export default function UserProfile() {
     nueva: false,
     confirmar: false,
   });
+  
 
   // Cargar datos del usuario al montar
-  useEffect(() => {
-    loadUserData();
-    loadReservas();
-  }, []);
+ useEffect(() => {
+  loadUserData();
+  loadReservasCompletas(); 
+}, []);
 
   const loadUserData = async () => {
     try {
@@ -109,43 +118,51 @@ export default function UserProfile() {
     }
   };
 
-  const loadReservas = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const usuarioId = localStorage.getItem('usuarioId');
-      
-      if (!token || !usuarioId) {
-        console.log('❌ No hay token o usuarioId');
-        return;
-      }
+  /**
+ * ✅ NUEVA VERSIÓN: Cargar reservas con todos los detalles
+ */
+const loadReservasCompletas = async () => {
+  setLoadingReservas(true);
+  try {
+    const token = localStorage.getItem('token');
+    const usuarioId = localStorage.getItem('usuarioId');
+    
+    if (!token || !usuarioId) {
+      console.log('❌ No hay sesión');
+      return;
+    }
 
-      console.log('📋 Cargando reservas para usuario:', usuarioId);
-      
-      const response = await fetch(`http://localhost:9090/api/reservas/usuario/${usuarioId}`, {
+    console.log('📋 Cargando reservas completas para usuario:', usuarioId);
+    
+    const response = await fetch(
+      `http://localhost:9090/api/reservas/usuario/${usuarioId}/completas`,
+      {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ Error en respuesta:', errorData);
-        throw new Error(errorData.error || 'Error al cargar reservas');
       }
+    );
 
-      const data = await response.json();
-      console.log('✅ Reservas recibidas:', data);
-      
-      // El backend puede devolver array directamente o en un objeto
-      const reservasArray = Array.isArray(data) ? data : (data.data || []);
-      setReservas(reservasArray);
-      
-      console.log(`✅ ${reservasArray.length} reservas cargadas`);
-    } catch (err) {
-      console.error('❌ Error al cargar reservas:', err);
-      setReservas([]);
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('❌ Error en respuesta:', errorData);
+      throw new Error(errorData.error || 'Error al cargar reservas');
     }
-  };
+
+    const data = await response.json();
+    console.log('✅ Reservas completas recibidas:', data);
+    
+    const reservasArray = Array.isArray(data) ? data : (data.data || []);
+    setReservasCompletas(reservasArray);
+    
+    console.log(`✅ ${reservasArray.length} reservas completas cargadas`);
+  } catch (err) {
+    console.error('❌ Error al cargar reservas:', err);
+    setReservasCompletas([]);
+  } finally {
+    setLoadingReservas(false);
+  }
+};
 
   const handleEdit = () => {
     setEditMode(true);
@@ -255,11 +272,18 @@ export default function UserProfile() {
   };
 
   const handleLogout = () => {
-    if (window.confirm('¿Estás seguro que deseas cerrar sesión?')) {
-      localStorage.clear();
-      navigate('/');
-    }
-  };
+  if (window.confirm('¿Estás seguro que deseas cerrar sesión?')) {
+    localStorage.clear();
+    
+    // ✅ Disparar evento para notificar cambios en localStorage
+    window.dispatchEvent(new Event('storage'));
+    
+    // Alternativa: disparar evento personalizado
+    window.dispatchEvent(new CustomEvent('logout'));
+    
+    navigate('/');
+  }
+};
 
   // Función para formatear fecha
   const formatDate = (dateString) => {
@@ -283,6 +307,95 @@ export default function UserProfile() {
     }
     return age;
   };
+  /**
+ * ✅ NUEVA: Cancelar una reserva
+ */
+const handleCancelarReserva = async (reservaId) => {
+  if (!window.confirm('¿Estás seguro de que deseas cancelar esta reserva?')) {
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('token');
+    
+    console.log('❌ Cancelando reserva:', reservaId);
+    
+    const response = await fetch(
+      `http://localhost:9090/api/reservas/${reservaId}/cancelar`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error al cancelar');
+    }
+
+    console.log('✅ Reserva cancelada');
+    setSuccess('✅ Reserva cancelada correctamente');
+    
+    // Recargar reservas
+    await loadReservasCompletas();
+    
+    setTimeout(() => setSuccess(''), 3000);
+    
+  } catch (err) {
+    console.error('❌ Error:', err);
+    setError(`Error al cancelar: ${err.message}`);
+    setTimeout(() => setError(''), 5000);
+  }
+};
+
+/**
+ * ✅ NUEVA: Descargar PDF de confirmación
+ */
+const handleDescargarPDF = async (reservaId) => {
+  try {
+    const token = localStorage.getItem('token');
+    
+    setSuccess('⏳ Generando PDF...');
+    
+    console.log('📄 Descargando PDF para reserva:', reservaId);
+    
+    const response = await fetch(
+      `http://localhost:9090/api/reservas/${reservaId}/pdf`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Error al generar PDF');
+    }
+
+    // Descargar el archivo
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Reserva_TG-${String(reservaId).padStart(8, '0')}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    
+    console.log('✅ PDF descargado');
+    setSuccess('✅ PDF descargado correctamente');
+    setTimeout(() => setSuccess(''), 3000);
+    
+  } catch (err) {
+    console.error('❌ Error:', err);
+    setError('Error al descargar PDF. Inténtalo nuevamente.');
+    setTimeout(() => setError(''), 5000);
+  }
+};
 
   if (loading) {
     return (
@@ -596,110 +709,304 @@ export default function UserProfile() {
 
 
             {/* Tab: Reservas */}
-            {activeTab === 'reservas' && (
-              <div>
-                <h2 className="text-2xl font-bold text-astronaut-dark mb-2">
-                  Mis Reservas
-                </h2>
-                <p className="text-gray-600 text-sm mb-6">
-                  Historial completo de tus viajes y reservas
-                </p>
+      
+{activeTab === 'reservas' && (
+  <div>
+    <h2 className="text-2xl font-bold text-astronaut-dark mb-2">
+      Mis Reservas
+    </h2>
+    <p className="text-gray-600 text-sm mb-6">
+      Historial completo de tus viajes y reservas
+    </p>
 
-                {reservas.length === 0 ? (
-                  <div className="text-center py-16 bg-gray-50 rounded-xl">
-                    <Ticket className="w-20 h-20 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-gray-700 mb-2">
-                      No tienes reservas aún
+    {loadingReservas ? (
+      <div className="flex items-center justify-center py-16">
+        <Loader className="w-8 h-8 animate-spin text-cosmic-base" />
+        <span className="ml-3 text-gray-600">Cargando reservas...</span>
+      </div>
+    ) : reservasCompletas.length === 0 ? (
+      <div className="text-center py-16 bg-gray-50 rounded-xl">
+        <Ticket className="w-20 h-20 text-gray-300 mx-auto mb-4" />
+        <h3 className="text-xl font-semibold text-gray-700 mb-2">
+          No tienes reservas aún
+        </h3>
+        <p className="text-gray-500 mb-6">
+          Comienza a planear tu próxima aventura
+        </p>
+        <button
+          onClick={() => navigate('/')}
+          className="px-6 py-3 bg-cosmic-base text-white rounded-lg hover:bg-cosmic-dark transition-colors font-medium inline-flex items-center gap-2"
+        >
+          <Plane className="w-5 h-5" />
+          Buscar vuelos
+        </button>
+      </div>
+    ) : (
+      <div className="space-y-6">
+        {reservasCompletas.map((reserva) => (
+          <div
+            key={reserva.id}
+            className="border-2 border-gray-200 rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-300 bg-white"
+          >
+            {/* Header de la reserva */}
+            <div className="bg-gradient-to-r from-cosmic-base to-astronaut-base p-6 text-white">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                    <Ticket className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">
+                      Confirmación: {reserva.numeroConfirmacion}
                     </h3>
-                    <p className="text-gray-500 mb-6">
-                      Comienza a planear tu próxima aventura
+                    <p className="text-sm text-white text-opacity-90 flex items-center gap-2 mt-1">
+                      <Calendar className="w-4 h-4" />
+                      Reservado el {new Date(reserva.fechaReserva).toLocaleDateString('es-ES', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
                     </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-end gap-2">
+                  <span
+                    className={`px-6 py-2 rounded-full text-sm font-bold shadow-lg ${
+                      reserva.estado === 'confirmada'
+                        ? 'bg-green-500 text-white'
+                        : reserva.estado === 'pendiente'
+                        ? 'bg-yellow-500 text-white'
+                        : 'bg-red-500 text-white'
+                    }`}
+                  >
+                    {reserva.estado === 'confirmada' ? '✓ Confirmada' : 
+                     reserva.estado === 'pendiente' ? '⏳ Pendiente' : 
+                     '✗ Cancelada'}
+                  </span>
+                  
+                  {reserva.estado === 'confirmada' && (
                     <button
-                      onClick={() => navigate('/')}
-                      className="px-6 py-3 bg-cosmic-base text-white rounded-lg hover:bg-cosmic-dark transition-colors font-medium inline-flex items-center gap-2"
+                      onClick={() => handleCancelarReserva(reserva.id)}
+                      className="text-sm text-white hover:text-red-200 underline"
                     >
-                      <Plane className="w-5 h-5" />
-                      Buscar vuelos
+                      Cancelar reserva
                     </button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {reservas.map((reserva) => (
-                      <div
-                        key={reserva.id}
-                        className="border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-200 bg-white"
-                      >
-                        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                          {/* Info de la reserva */}
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-3">
-                              <div className="w-12 h-12 bg-gradient-to-br from-cosmic-base to-astronaut-base rounded-full flex items-center justify-center text-white font-bold">
-                                <Ticket className="w-6 h-6" />
-                              </div>
-                              <div>
-                                <h3 className="font-bold text-lg text-astronaut-dark">
-                                  Reserva #{reserva.id}
-                                </h3>
-                                <p className="text-sm text-gray-500 flex items-center gap-1">
-                                  <Calendar className="w-3 h-3" />
-                                  {formatDate(reserva.fechaReserva)}
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Detalles */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                              {reserva.viajeId && (
-                                <div className="flex items-center gap-2 text-gray-600">
-                                  <Plane className="w-4 h-4 text-cosmic-base" />
-                                  <span>Viaje incluido (ID: {reserva.viajeId})</span>
-                                </div>
-                              )}
-                              {reserva.alojamientoId && (
-                                <div className="flex items-center gap-2 text-gray-600">
-                                  <MapPin className="w-4 h-4 text-cosmic-base" />
-                                  <span>Alojamiento (ID: {reserva.alojamientoId})</span>
-                                </div>
-                              )}
-                              {reserva.transporteId && (
-                                <div className="flex items-center gap-2 text-gray-600">
-                                  <MapPin className="w-4 h-4 text-cosmic-base" />
-                                  <span>Transporte (ID: {reserva.transporteId})</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Estado y acciones */}
-                          <div className="flex flex-col items-end gap-3">
-                            <span
-                              className={`px-4 py-2 rounded-full text-sm font-semibold ${
-                                reserva.estado === 'confirmada'
-                                  ? 'bg-green-100 text-green-800'
-                                  : reserva.estado === 'pendiente'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}
-                            >
-                              {reserva.estado === 'confirmada' ? '✓ Confirmada' : 
-                               reserva.estado === 'pendiente' ? '⏳ Pendiente' : 
-                               '✗ Cancelada'}
-                            </span>
-                            <button
-                              onClick={() => navigate(`/reserva/${reserva.id}`)}
-                              className="text-cosmic-base hover:text-cosmic-dark font-medium text-sm flex items-center gap-1 hover:underline"
-                            >
-                              Ver detalles
-                              <FileText className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            )}
+            </div>
+
+            {/* Contenido de la reserva */}
+            <div className="p-6 space-y-6">
+              {/* VUELO */}
+              {reserva.viaje && (
+                <div className="border-l-4 border-blue-500 pl-6 py-4 bg-blue-50 rounded-r-xl">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Plane className="w-6 h-6 text-blue-600" />
+                    <h4 className="text-xl font-bold text-gray-800">Vuelo</h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Ruta</p>
+                      <p className="text-lg font-bold text-gray-800">
+                        {reserva.viaje.origen} → {reserva.viaje.destino}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Fecha de Salida</p>
+                      <p className="text-lg font-semibold text-gray-800">
+                        {new Date(reserva.viaje.fechaSalida).toLocaleDateString('es-ES', {
+                          day: '2-digit',
+                          month: 'long',
+                          year: 'numeric'
+                        })}
+                      </p>
+                    </div>
+                    
+                    {reserva.viaje.fechaRegreso && (
+                      <div>
+                        <p className="text-sm text-gray-600 font-medium">Fecha de Regreso</p>
+                        <p className="text-lg font-semibold text-gray-800">
+                          {new Date(reserva.viaje.fechaRegreso).toLocaleDateString('es-ES', {
+                            day: '2-digit',
+                            month: 'long',
+                            year: 'numeric'
+                          })}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {reserva.viaje.aerolinea && (
+                      <div>
+                        <p className="text-sm text-gray-600 font-medium">Aerolínea</p>
+                        <p className="text-lg font-semibold text-gray-800">
+                          {reserva.viaje.aerolinea}
+                        </p>
+                      </div>
+                    )}
+                    
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Tipo</p>
+                      <p className="text-lg font-semibold text-gray-800 capitalize">
+                        {reserva.viaje.tipoViaje === 'round-trip' ? 'Ida y vuelta' : 'Solo ida'}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Precio Vuelo</p>
+                      <p className="text-xl font-bold text-blue-600">
+                        {reserva.viaje.precio} {reserva.viaje.moneda}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* HOTEL */}
+              {reserva.hotel && (
+                <div className="border-l-4 border-purple-500 pl-6 py-4 bg-purple-50 rounded-r-xl">
+                  <div className="flex items-center gap-3 mb-4">
+                    <MapPin className="w-6 h-6 text-purple-600" />
+                    <h4 className="text-xl font-bold text-gray-800">Hotel</h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Nombre</p>
+                      <p className="text-lg font-semibold text-gray-800">
+                        {reserva.hotel.nombre}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Ciudad</p>
+                      <p className="text-lg font-semibold text-gray-800">
+                        {reserva.hotel.ciudad}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Precio</p>
+                      <p className="text-xl font-bold text-purple-600">
+                        {reserva.hotel.precio} USD
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TRANSPORTE */}
+              {reserva.transporte && (
+                <div className="border-l-4 border-green-500 pl-6 py-4 bg-green-50 rounded-r-xl">
+                  <div className="flex items-center gap-3 mb-4">
+                    <MapPin className="w-6 h-6 text-green-600" />
+                    <h4 className="text-xl font-bold text-gray-800">Transporte</h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Tipo</p>
+                      <p className="text-lg font-semibold text-gray-800">
+                        {reserva.transporte.vehiculoTipo || reserva.transporte.tipo}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Desde</p>
+                      <p className="text-lg font-semibold text-gray-800">
+                        {reserva.transporte.origen}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Hasta</p>
+                      <p className="text-lg font-semibold text-gray-800">
+                        {reserva.transporte.destino}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Precio</p>
+                      <p className="text-xl font-bold text-green-600">
+                        {reserva.transporte.precio} {reserva.transporte.moneda}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PAGO */}
+              {reserva.pago && (
+                <div className="border-l-4 border-orange-500 pl-6 py-4 bg-orange-50 rounded-r-xl">
+                  <div className="flex items-center gap-3 mb-4">
+                    <FileText className="w-6 h-6 text-orange-600" />
+                    <h4 className="text-xl font-bold text-gray-800">Información de Pago</h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Método</p>
+                      <p className="text-lg font-semibold text-gray-800 capitalize">
+                        {reserva.pago.metodoPago}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Fecha</p>
+                      <p className="text-lg font-semibold text-gray-800">
+                        {new Date(reserva.pago.fechaPago).toLocaleDateString('es-ES')}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Estado</p>
+                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold ${
+                        reserva.pago.estado === 'pagado' ? 'bg-green-200 text-green-800' : 
+                        reserva.pago.estado === 'pendiente' ? 'bg-yellow-200 text-yellow-800' : 
+                        'bg-red-200 text-red-800'
+                      }`}>
+                        {reserva.pago.estado.toUpperCase()}
+                      </span>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Monto Total</p>
+                      <p className="text-2xl font-bold text-orange-600">
+                        {reserva.pago.monto} USD
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer con acciones */}
+            <div className="bg-gray-50 px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 border-t">
+              <div className="text-sm text-gray-600">
+                ID de Reserva: <span className="font-mono font-bold">{reserva.id}</span>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleDescargarPDF(reserva.id)}
+                  className="px-4 py-2 bg-cosmic-base text-white rounded-lg hover:bg-cosmic-dark transition-colors font-medium flex items-center gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  Descargar PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
 
             {/* Tab: Seguridad */}
             {activeTab === 'security' && (

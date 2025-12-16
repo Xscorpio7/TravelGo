@@ -1,14 +1,18 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Interface.java to edit this template
- */
-
 package com.travelgo.backend_travelgo.repository;
+
 import com.travelgo.backend_travelgo.model.Pago;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 
+@Repository
 public interface PagoRepository extends JpaRepository<Pago, Integer> {
     
+    /**
+     * Buscar pagos por ID de reserva
+     * @param reservaId ID de la reserva
+     * @return Lista de pagos asociados
+     */
+    List<Pago> findByReservaId(Integer reservaId);
 }

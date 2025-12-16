@@ -42,54 +42,31 @@ export default function BookingFlow() {
     loadBookingData();
   }, []);
 
-  const loadBookingData = async () => {
-    try {
-      console.log('📥 Cargando datos de reserva...');
+  const loadBookingData = () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login', { state: { from: 'booking' }, replace: true });
+      return;
+    }
 
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.log('❌ No hay sesión activa');
-        navigate('/login', { state: { from: 'booking' }, replace: true });
+    if (location.state?.selectedFlight) {
+      setSelectedFlight(location.state.selectedFlight);
+      setSearchData(location.state.searchData);
+      bookingStorage.save({
+        selectedFlight: location.state.selectedFlight,
+        searchData: location.state.searchData,
+      });
+    } else {
+      const savedBooking = bookingStorage.get();
+      if (!savedBooking || !savedBooking.selectedFlight) {
+        setError('No hay reserva pendiente');
+        setTimeout(() => navigate('/'), 3000);
         return;
       }
-
-      // ✅ CORRECCIÓN: Primero intentar location.state, luego bookingStorage
-      if (location.state?.selectedFlight) {
-        console.log('✅ Datos desde location.state');
-        setSelectedFlight(location.state.selectedFlight);
-        setSearchData(location.state.searchData);
-        setCurrentStep(location.state.currentStep || 1);
-        
-        // Guardar en storage para persistencia
-        bookingStorage.save({
-          selectedFlight: location.state.selectedFlight,
-          searchData: location.state.searchData,
-          currentStep: location.state.currentStep || 1,
-        });
-      } else {
-        // Intentar recuperar de bookingStorage
-        const savedBooking = bookingStorage.get();
-        
-        if (!savedBooking || !savedBooking.selectedFlight) {
-          console.log('⚠️ No hay reserva pendiente');
-          setError('No se encontró una reserva pendiente.');
-          setTimeout(() => navigate('/'), 3000);
-          return;
-        }
-
-        console.log('✅ Datos desde localStorage');
-        setSelectedFlight(savedBooking.selectedFlight);
-        setSelectedHotel(savedBooking.selectedHotel || null);
-        setSelectedTransport(savedBooking.selectedTransport || null);
-        setSearchData(savedBooking.searchData);
-        setCurrentStep(savedBooking.currentStep || 1);
-      }
-
-      setLoading(false);
-    } catch (err) {
-      console.error('❌ Error:', err);
-      setError('Error al cargar los datos');
-      setLoading(false);
+      setSelectedFlight(savedBooking.selectedFlight);
+      setSearchData(savedBooking.searchData);
+      setSelectedHotel(savedBooking.selectedHotel || null);
+      setSelectedTransport(savedBooking.selectedTransport || null);
     }
   };
 
@@ -214,118 +191,156 @@ export default function BookingFlow() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // ✅ SIMPLIFICADO: Una sola llamada al backend para crear todo
   const handlePayment = async (paymentData) => {
-    setLoading(true);
-    setError('');
+  setLoading(true);
+  setError('');
 
-    try {
-      const token = localStorage.getItem('token');
-      const usuarioId = parseInt(localStorage.getItem('usuarioId'));
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No hay sesión activa');
+    }
 
-      if (!token) {
-        throw new Error('No hay sesión activa');
+    console.log('💳 Procesando reserva completa...');
+
+    // ✅ PASO 1: Si hay hotel de Amadeus, guardarlo primero en BD
+    let hotelIdLocal = null;
+    if (selectedHotel) {
+      // Si el hotel ya tiene ID numérico, usarlo directamente
+      if (selectedHotel.id && Number.isInteger(selectedHotel.id)) {
+        hotelIdLocal = selectedHotel.id;
+      } 
+      // Si es hotel de Amadeus (ID alfanumérico), ignorarlo por ahora
+      else if (selectedHotel.hotelId && typeof selectedHotel.hotelId === 'string') {
+        console.log('⚠️ Hotel de Amadeus detectado, no se guardará en esta versión');
+        // Puedes implementar guardado de hotel aquí en el futuro
+        hotelIdLocal = null;
       }
+    }
 
-      console.log('💳 Creando reserva completa...');
+    // ✅ PASO 2: Si hay transporte, verificar que tenga ID válido
+    let transporteIdLocal = null;
+    if (selectedTransport?.id && Number.isInteger(selectedTransport.id)) {
+      transporteIdLocal = selectedTransport.id;
+    }
 
-      // ✅ PAYLOAD ÚNICO para el backend
-      const completeBookingPayload = {
-        // Datos del usuario
-        usuarioId: usuarioId,
-        
-        // Datos del vuelo (obligatorio)
-        viajeData: {
-          flightOfferId: selectedFlight.id || '',
-          origin: searchData.origin || '',
-          destinationCode: searchData.destination || '',
-          departureDate: searchData.departureDate || '',
-          returnDate: searchData.returnDate || null,
-          precio: parseFloat(selectedFlight.price?.total || 0),
-          currency: selectedFlight.price?.currency || 'USD',
-          airline: selectedFlight.itineraries?.[0]?.segments?.[0]?.carrierCode || '',
-          bookableSeats: selectedFlight.numberOfBookableSeats || 0,
-          tipoViaje: 'vuelo',
-          titulo: `${searchData.origin} → ${searchData.destination}`,
-        },
-        
-        // Datos opcionales
-        alojamientoId: selectedHotel?.id || null,
-        transporteId: selectedTransport?.id || null,
-        
-        // Datos de pago
-        pagoData: {
-          metodoPago: paymentData.metodoPago,
-          monto: parseFloat(calculateTotal()),
-          estado: 'pagado',
-          fechaPago: new Date().toISOString().split('T')[0],
-        },
-        
-        // Datos del pasajero
-        pasajeroData: {
-          primerNombre: paymentData.primerNombre,
-          primerApellido: paymentData.primerApellido,
-          email: paymentData.email,
-          telefono: paymentData.telefono,
-          documento: paymentData.documento,
-        }
-      };
-
-      console.log('📦 Payload completo:', JSON.stringify(completeBookingPayload, null, 2));
-
-      // ✅ UNA SOLA LLAMADA al backend
-      const response = await fetch('http://localhost:9090/api/reservas/crear-completa', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(completeBookingPayload),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ Error del servidor:', errorData);
-        
-        if (response.status === 401) {
-          localStorage.clear();
-          navigate('/login', { state: { from: 'booking', expired: true }, replace: true });
-          return;
-        }
-        
-        throw new Error(errorData.error || errorData.message || 'Error al crear la reserva');
-      }
-
-      const result = await response.json();
-      console.log('✅ Reserva creada exitosamente:', result);
+    // ✅ PASO 3: Preparar payload para /api/bookings/complete
+    const completeBookingData = {
+      // Datos del vuelo (obligatorio)
+      flightData: {
+        id: selectedFlight.id,
+        origin: searchData.origin,
+        destination: searchData.destination,
+        departureDate: searchData.departureDate,
+        returnDate: searchData.returnDate || null,
+        price: selectedFlight.price,
+        itineraries: selectedFlight.itineraries,
+        numberOfBookableSeats: selectedFlight.numberOfBookableSeats,
+        validatingAirlineCodes: selectedFlight.validatingAirlineCodes,
+        ...selectedFlight
+      },
       
-      const reservaId = result.data?.reservaId || result.reservaId;
+      // Datos de búsqueda
+      searchData: {
+        origin: searchData.origin,
+        destination: searchData.destination,
+        departureDate: searchData.departureDate,
+        returnDate: searchData.returnDate || null,
+        adults: searchData.adults || 1,
+      },
+      
+      // ✅ IDs validados (solo si son números enteros)
+      alojamientoId: hotelIdLocal,
+      transporteId: transporteIdLocal,
+      
+      // Datos de pago
+      paymentData: {
+        metodoPago: paymentData.metodoPago,
+        
+        // Si es tarjeta
+        ...(paymentData.metodoPago === 'Tarjeta' && {
+          numeroTarjeta: paymentData.numeroTarjeta,
+          nombreTitular: paymentData.nombreTitular,
+          fechaExpiracion: paymentData.fechaExpiracion,
+          cvv: paymentData.cvv,
+        }),
+        
+        // Si es PSE
+        ...(paymentData.metodoPago === 'PSE' && {
+          banco: paymentData.banco,
+          tipoPersona: paymentData.tipoPersona,
+          tipoDocumento: paymentData.tipoDocumento,
+          numeroDocumento: paymentData.numeroDocumento,
+        }),
+        
+        // Si es Nequi
+        ...(paymentData.metodoPago === 'Nequi' && {
+          numeroNequi: paymentData.numeroNequi,
+        }),
+      },
+    };
 
-      // Limpiar bookingStorage
-      bookingStorage.clear();
+    console.log('📦 Payload final:', JSON.stringify(completeBookingData, null, 2));
+
+    // ✅ PASO 4: Enviar al backend
+    const response = await fetch('http://localhost:9090/api/bookings/complete', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(completeBookingData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('❌ Error del servidor:', errorData);
       
-      setSuccess('🎉 ¡Reserva realizada exitosamente!');
-      
-      // Redirigir al perfil con tab de reservas abierto
-      setTimeout(() => {
-        navigate('/UserProfile', { 
-          state: { 
-            activeTab: 'reservas',
-            newReservaId: reservaId,
-            showSuccess: true,
-          },
+      if (response.status === 401) {
+        localStorage.clear();
+        navigate('/login', { 
+          state: { from: 'booking', expired: true },
           replace: true 
         });
-      }, 2000);
-
-    } catch (err) {
-      console.error('❌ Error en handlePayment:', err);
-      setError(`Error: ${err.message}`);
-    } finally {
-      setLoading(false);
+        return;
+      }
+      
+      throw new Error(errorData.error || errorData.message || 'Error al procesar la reserva');
     }
-  };
+
+    const result = await response.json();
+    console.log('✅ Reserva completada:', result);
+
+    // Extraer datos de respuesta
+    const confirmationNumber = result.confirmationNumber || `TG-${result.reservaId}`;
+    const reservaId = result.reservaId || result.data?.reservaId;
+
+    // Limpiar storage
+    bookingStorage.clear();
+    
+    setSuccess(`🎉 ¡Reserva confirmada! Número: ${confirmationNumber}`);
+    
+    // Redirigir al perfil con tab de reservas
+    setTimeout(() => {
+      navigate('/UserProfile', { 
+        state: { 
+          bookingSuccess: true,
+          confirmationNumber: confirmationNumber,
+          reservaId: reservaId,
+          activeTab: 'reservas',
+        },
+        replace: true 
+      });
+    }, 2000);
+
+  } catch (err) {
+    console.error('❌ Error al procesar pago:', err);
+    setError(`Error: ${err.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const calculateTotal = () => {
     let total = 0;

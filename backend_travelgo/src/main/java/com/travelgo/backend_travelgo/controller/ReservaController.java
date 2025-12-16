@@ -1,19 +1,17 @@
 package com.travelgo.backend_travelgo.controller;
 
-import com.travelgo.backend_travelgo.model.Reserva;
-import com.travelgo.backend_travelgo.repository.ReservaRepository;
-import com.travelgo.backend_travelgo.service.ReservaService;
+import com.travelgo.backend_travelgo.model.*;
+import com.travelgo.backend_travelgo.repository.*;
+import com.travelgo.backend_travelgo.service.PDFService;
 import com.travelgo.backend_travelgo.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/reservas")
@@ -26,52 +24,35 @@ public class ReservaController {
     private ReservaRepository reservaRepository;
     
     @Autowired
-    private ReservaService reservaService;
+    private ViajeRepository viajeRepository;
+    
+    @Autowired
+    private PagoRepository pagoRepository;
+    
+    @Autowired
+    private AlojamientoRepository alojamientoRepository;
+    
+    @Autowired
+    private TransporteRepository transporteRepository;
     
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private PDFService pdfService;
+
+    @Autowired
+    private UsuarioRepository usuarioRepository;
     
     /**
-     * Obtener todas las reservas (solo para admin)
-     * GET /api/reservas
+     * ✅ NUEVO: Obtener reservas con TODOS los detalles relacionados
+     * GET /api/reservas/usuario/{usuarioId}/completas
      */
-    @GetMapping
-    public ResponseEntity<?> getAllReservas(@RequestHeader(value = "Authorization", required = false) String authHeader) {
-        try {
-            // Verificar autenticación
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return ResponseEntity.status(401).body(Map.of("error", "Token no proporcionado"));
-            }
-            
-            String token = authHeader.substring(7);
-            
-            if (jwtUtil.isTokenExpired(token)) {
-                return ResponseEntity.status(401).body(Map.of("error", "Token expirado"));
-            }
-            
-            // Verificar que sea admin
-            String tipoUsuario = jwtUtil.extractTipoUsuario(token);
-            if (!"admin".equalsIgnoreCase(tipoUsuario)) {
-                return ResponseEntity.status(403).body(Map.of("error", "Acceso denegado. Solo administradores"));
-            }
-            
-            List<Reserva> reservas = reservaService.findAll();
-            return ResponseEntity.ok(reservas);
-            
-        } catch (Exception e) {
-            logger.error("Error al obtener reservas: {}", e.getMessage());
-            return ResponseEntity.status(500).body(Map.of("error", "Error al obtener reservas"));
-        }
-    }
-    
-    /**
-     * ✅ CORREGIDO - Obtener reservas por usuario
-     * GET /api/reservas/usuario/{usuarioId}
-     */
-    @GetMapping("/usuario/{usuarioId}")
-    public ResponseEntity<?> getReservasByUsuario(
+    @GetMapping("/usuario/{usuarioId}/completas")
+    public ResponseEntity<?> getReservasCompletasUsuario(
             @PathVariable Integer usuarioId,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        
         try {
             // Verificar autenticación
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -84,231 +65,223 @@ public class ReservaController {
                 return ResponseEntity.status(401).body(Map.of("error", "Token expirado"));
             }
             
-            // Verificar que el usuario autenticado es el mismo o es admin
+            // Verificar permisos
             Integer tokenUsuarioId = jwtUtil.extractUsuarioId(token);
             String tipoUsuario = jwtUtil.extractTipoUsuario(token);
             
             if (!tokenUsuarioId.equals(usuarioId) && !"admin".equalsIgnoreCase(tipoUsuario)) {
-                return ResponseEntity.status(403).body(Map.of("error", "No tienes permiso para ver estas reservas"));
+                return ResponseEntity.status(403).body(Map.of("error", "No tienes permiso"));
             }
             
-            logger.info("📋 Obteniendo reservas para usuario: {}", usuarioId);
+            logger.info("📋 Obteniendo reservas completas para usuario: {}", usuarioId);
             
-            // ✅ USAR EL MÉTODO CORRECTO
-            List<Reserva> reservas = reservaService.findByUsuarioId(usuarioId);
+            // Obtener reservas
+            List<Reserva> reservas = reservaRepository.findByUsuarioId(usuarioId);
             
-            logger.info("✅ Encontradas {} reservas para usuario {}", reservas.size(), usuarioId);
-            
-            return ResponseEntity.ok(reservas);
-            
-        } catch (Exception e) {
-            logger.error("❌ Error al obtener reservas del usuario {}: {}", usuarioId, e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Error al obtener reservas: " + e.getMessage()));
-        }
-    }
-    
-    /**
-     * Obtener una reserva por ID
-     * GET /api/reservas/{id}
-     */
-    @GetMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> getReservaById(@PathVariable Integer id) {
-        Map<String, Object> response = new HashMap<>();
-
-        try {
-            logger.info("Obteniendo reserva: {}", id);
-
-            return reservaRepository.findById(id)
-                    .map(reserva -> {
-                        response.put("status", "SUCCESS");
-                        response.put("message", "Reserva obtenida correctamente");
-                        response.put("data", reserva);
-                        return ResponseEntity.ok(response);
-                    })
-                    .orElseGet(() -> {
-                        response.put("status", "ERROR");
-                        response.put("message", "Reserva no encontrada");
-                        response.put("data", null);
-                        return ResponseEntity.status(404).body(response);
+            // Construir respuesta con todos los detalles
+            List<Map<String, Object>> reservasCompletas = reservas.stream()
+                .map(reserva -> {
+                    Map<String, Object> detalle = new HashMap<>();
+                    
+                    // Datos básicos de reserva
+                    detalle.put("id", reserva.getId());
+                    detalle.put("fechaReserva", reserva.getFechaReserva());
+                    detalle.put("estado", reserva.getEstado().name());
+                    
+                    // Datos del viaje (vuelo)
+                    if (reserva.getViajeId() != null) {
+                        viajeRepository.findById(reserva.getViajeId()).ifPresent(viaje -> {
+                            Map<String, Object> viajeData = new HashMap<>();
+                            viajeData.put("id", viaje.getId());
+                            viajeData.put("origen", viaje.getOrigin());
+                            viajeData.put("destino", viaje.getDestinationCode());
+                            viajeData.put("fechaSalida", viaje.getDepartureDate());
+                            viajeData.put("fechaRegreso", viaje.getReturnDate());
+                            viajeData.put("aerolinea", viaje.getAirlineName());
+                            viajeData.put("precio", viaje.getPrecio());
+                            viajeData.put("moneda", viaje.getCurrency());
+                            viajeData.put("tipoViaje", viaje.getJourneyType());
+                            detalle.put("viaje", viajeData);
+                        });
+                    }
+                    
+                    // Datos del alojamiento (hotel)
+                    if (reserva.getAlojamientoId() != null) {
+                        alojamientoRepository.findById(reserva.getAlojamientoId()).ifPresent(hotel -> {
+                            Map<String, Object> hotelData = new HashMap<>();
+                            hotelData.put("id", hotel.getId());
+                            hotelData.put("nombre", hotel.getNombre());
+                            hotelData.put("ciudad", hotel.getCiudad());
+                            hotelData.put("tipo", hotel.getTipo());
+                            hotelData.put("precio", hotel.getPrecio());
+                            detalle.put("hotel", hotelData);
+                        });
+                    }
+                    
+                    // Datos del transporte
+                    if (reserva.getTransporteId() != null) {
+                        transporteRepository.findById(reserva.getTransporteId()).ifPresent(transporte -> {
+                            Map<String, Object> transporteData = new HashMap<>();
+                            transporteData.put("id", transporte.getId());
+                            transporteData.put("tipo", transporte.getTipo());
+                            transporteData.put("origen", transporte.getOrigen());
+                            transporteData.put("destino", transporte.getDestino());
+                            transporteData.put("vehiculoTipo", transporte.getVehiculoTipo());
+                            transporteData.put("precio", transporte.getPrecio());
+                            transporteData.put("moneda", transporte.getCurrency());
+                            detalle.put("transporte", transporteData);
+                        });
+                    }
+                    
+                    // Datos del pago
+                    pagoRepository.findByReservaId(reserva.getId()).stream().findFirst().ifPresent(pago -> {
+                        Map<String, Object> pagoData = new HashMap<>();
+                        pagoData.put("id", pago.getId());
+                        pagoData.put("metodoPago", pago.getMetodoPago().name());
+                        pagoData.put("monto", pago.getMonto());
+                        pagoData.put("estado", pago.getEstado().name());
+                        pagoData.put("fechaPago", pago.getFechaPago());
+                        detalle.put("pago", pagoData);
                     });
-
+                    
+                    // Número de confirmación
+                    detalle.put("numeroConfirmacion", "TG-" + String.format("%08d", reserva.getId()));
+                    
+                    return detalle;
+                })
+                .collect(Collectors.toList());
+            
+            logger.info("✅ Encontradas {} reservas completas", reservasCompletas.size());
+            
+            return ResponseEntity.ok(Map.of(
+                "status", "SUCCESS",
+                "data", reservasCompletas,
+                "count", reservasCompletas.size()
+            ));
+            
         } catch (Exception e) {
-            logger.error("Error al obtener reserva: {}", e.getMessage());
-            response.put("status", "ERROR");
-            response.put("message", "Error al obtener reserva: " + e.getMessage());
-            response.put("data", null);
-            return ResponseEntity.internalServerError().body(response);
+            logger.error("❌ Error al obtener reservas completas: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of(
+                "error", "Error al obtener reservas: " + e.getMessage()
+            ));
         }
     }
     
     /**
-     * Crear una nueva reserva
-     * POST /api/reservas
+     * ✅ Cancelar una reserva
+     * PUT /api/reservas/{id}/cancelar
      */
-    @PostMapping
-    public ResponseEntity<?> createReserva(@RequestBody Reserva reserva) {
+    @PutMapping("/{id}/cancelar")
+    public ResponseEntity<?> cancelarReserva(
+            @PathVariable Integer id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        
         try {
-            logger.info("Creando nueva reserva para usuario: {}", reserva.getUsuarioId());
-            
-            if (reserva.getUsuarioId() == null || reserva.getViajeId() == null) {
-                Map<String, String> error = new HashMap<>();
-                error.put("error", "Usuario ID y Viaje ID son requeridos");
-                return ResponseEntity.badRequest().body(error);
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(401).body(Map.of("error", "Token no proporcionado"));
             }
             
-            Reserva reservaGuardada = reservaRepository.save(reserva);
+            String token = authHeader.substring(7);
+            Integer usuarioId = jwtUtil.extractUsuarioId(token);
             
-            logger.info("Reserva creada exitosamente: {}", reservaGuardada.getId());
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("status", "SUCCESS");
-            response.put("message", "Reserva creada correctamente");
-            response.put("data", reservaGuardada);
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("Error al crear reserva: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Error al crear reserva: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(error);
-        }
-    }
-    
-    /**
-     * Actualizar una reserva existente
-     * PUT /api/reservas/{id}
-     */
-    @PutMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> updateReserva(@PathVariable Integer id, @RequestBody Reserva reservaDetails) {
-        Map<String, Object> response = new HashMap<>();
-
-        try {
-            logger.info("Actualizando reserva: {}", id);
-
-            return reservaRepository.findById(id)
-                    .map(reserva -> {
-                        // Actualizar campos
-                        if (reservaDetails.getUsuarioId() != null) {
-                            reserva.setUsuarioId(reservaDetails.getUsuarioId());
-                        }
-                        if (reservaDetails.getViajeId() != null) {
-                            reserva.setViajeId(reservaDetails.getViajeId());
-                        }
-                        if (reservaDetails.getAlojamientoId() != null) {
-                            reserva.setAlojamientoId(reservaDetails.getAlojamientoId());
-                        }
-                        if (reservaDetails.getTransporteId() != null) {
-                            reserva.setTransporteId(reservaDetails.getTransporteId());
-                        }
-                        if (reservaDetails.getEstado() != null) {
-                            reserva.setEstado(reservaDetails.getEstado());
-                        }
-
-                        Reserva reservaActualizada = reservaRepository.save(reserva);
-
-                        logger.info("Reserva actualizada exitosamente: {}", id);
-
-                        response.put("status", "SUCCESS");
-                        response.put("message", "Reserva actualizada correctamente");
-                        response.put("data", reservaActualizada);
-
-                        return ResponseEntity.ok(response);
-                    })
-                    .orElseGet(() -> {
-                        response.put("status", "ERROR");
-                        response.put("message", "Reserva no encontrada");
-                        response.put("data", null);
-                        return ResponseEntity.status(404).body(response);
-                    });
-
-        } catch (Exception e) {
-            logger.error("Error al actualizar reserva: {}", e.getMessage());
-            response.put("status", "ERROR");
-            response.put("message", "Error al actualizar reserva: " + e.getMessage());
-            response.put("data", null);
-            return ResponseEntity.internalServerError().body(response);
-        }
-    }
-    
-    /**
-     * Eliminar una reserva
-     * DELETE /api/reservas/{id}
-     */
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteReserva(@PathVariable Integer id) {
-        try {
-            logger.info("Eliminando reserva: {}", id);
-            
-            if (!reservaRepository.existsById(id)) {
-                Map<String, String> error = new HashMap<>();
-                error.put("error", "Reserva no encontrada");
-                return ResponseEntity.status(404).body(error);
+            if (jwtUtil.isTokenExpired(token)) {
+                return ResponseEntity.status(401).body(Map.of("error", "Token expirado"));
             }
             
-            reservaRepository.deleteById(id);
+            logger.info("❌ Cancelando reserva {} por usuario {}", id, usuarioId);
             
-            logger.info("Reserva eliminada exitosamente: {}", id);
+            Reserva reserva = reservaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Reserva no encontrada"));
             
-            Map<String, Object> response = new HashMap<>();
-            response.put("status", "SUCCESS");
-            response.put("message", "Reserva eliminada correctamente");
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("Error al eliminar reserva: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Error al eliminar reserva: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(error);
-        }
-    }
-    
-    /**
-     * Cambiar estado de una reserva
-     * PUT /api/reservas/{id}/estado
-     */
-    @PutMapping("/{id}/estado")
-    public ResponseEntity<?> cambiarEstadoReserva(@PathVariable Integer id, @RequestBody Map<String, String> estadoData) {
-        try {
-            logger.info("Cambiando estado de reserva: {}", id);
-            
-            String nuevoEstado = estadoData.get("estado");
-            
-            if (nuevoEstado == null || nuevoEstado.isEmpty()) {
-                Map<String, String> error = new HashMap<>();
-                error.put("error", "El estado es requerido");
-                return ResponseEntity.badRequest().body(error);
+            // Verificar permisos
+            if (!reserva.getUsuarioId().equals(usuarioId)) {
+                return ResponseEntity.status(403).body(Map.of(
+                    "error", "No tienes permiso para cancelar esta reserva"
+                ));
             }
             
-            return reservaRepository.findById(id)
-                    .map(reserva -> {
-                        try {
-                            Reserva.Estado estado = Reserva.Estado.valueOf(nuevoEstado);
-                            reserva.setEstado(estado);
-                            Reserva reservaActualizada = reservaRepository.save(reserva);
-                            
-                            logger.info("Estado de reserva actualizado a: {}", nuevoEstado);
-                            
-                            Map<String, Object> response = new HashMap<>();
-                            response.put("status", "SUCCESS");
-                            response.put("message", "Estado actualizado correctamente");
-                            response.put("data", reservaActualizada);
-                            
-                            return ResponseEntity.ok(response);
-                        } catch (IllegalArgumentException e) {
-                            Map<String, String> error = new HashMap<>();
-                            error.put("error", "Estado inválido. Valores permitidos: pendiente, confirmada, cancelada");
-                            return ResponseEntity.badRequest().body(error);
-                        }
-                    })
-                    .orElse(ResponseEntity.status(404).body(new HashMap<String, String>() {{
-                        put("error", "Reserva no encontrada");
-                    }}));
+            // No permitir cancelar si ya está cancelada
+            if (reserva.getEstado() == Reserva.Estado.cancelada) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Esta reserva ya está cancelada"
+                ));
+            }
+            
+            reserva.setEstado(Reserva.Estado.cancelada);
+            reservaRepository.save(reserva);
+            
+            logger.info("✅ Reserva {} cancelada exitosamente", id);
+            
+            return ResponseEntity.ok(Map.of(
+                "status", "SUCCESS",
+                "message", "Reserva cancelada correctamente",
+                "reservaId", id
+            ));
+            
         } catch (Exception e) {
-            logger.error("Error al cambiar estado: {}", e.getMessage());
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Error al cambiar estado: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(error);
+            logger.error("❌ Error al cancelar reserva: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of(
+                "error", "Error al cancelar reserva: " + e.getMessage()
+            ));
         }
     }
+    @GetMapping("/{id}/pdf")
+public ResponseEntity<?> descargarPDFReserva(
+        @PathVariable Integer id,
+        @RequestHeader(value = "Authorization", required = false) String authHeader) {
+    
+    try {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).body(Map.of("error", "Token no proporcionado"));
+        }
+        
+        String token = authHeader.substring(7);
+        Integer usuarioId = jwtUtil.extractUsuarioId(token);
+        
+        if (jwtUtil.isTokenExpired(token)) {
+            return ResponseEntity.status(401).body(Map.of("error", "Token expirado"));
+        }
+        
+        logger.info("📄 Generando PDF para reserva: {}", id);
+        
+        // Obtener reserva
+        Reserva reserva = reservaRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Reserva no encontrada"));
+        
+        // Verificar permisos
+        if (!reserva.getUsuarioId().equals(usuarioId)) {
+            return ResponseEntity.status(403).body(Map.of(
+                "error", "No tienes permiso para ver esta reserva"
+            ));
+        }
+        
+        // Obtener datos relacionados
+        Viaje viaje = viajeRepository.findById(reserva.getViajeId())
+            .orElseThrow(() -> new RuntimeException("Viaje no encontrado"));
+        
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        
+        Pago pago = pagoRepository.findByReservaId(id).stream().findFirst()
+            .orElseThrow(() -> new RuntimeException("Pago no encontrado"));
+        
+        // Generar PDF
+        byte[] pdfBytes = pdfService.generateReservationPDF(reserva, viaje, usuario, pago);
+        
+        logger.info("✅ PDF generado: {} bytes", pdfBytes.length);
+        
+        // Devolver PDF
+        return ResponseEntity.ok()
+            .header("Content-Type", "application/pdf")
+            .header("Content-Disposition", "attachment; filename=Reserva_TG-" + 
+                    String.format("%08d", id) + ".pdf")
+            .body(pdfBytes);
+        
+    } catch (Exception e) {
+        logger.error("❌ Error al generar PDF: {}", e.getMessage(), e);
+        return ResponseEntity.status(500).body(Map.of(
+            "error", "Error al generar PDF: " + e.getMessage()
+        ));
+    }
+}
 }
