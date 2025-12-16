@@ -3,15 +3,38 @@ import logo from "../../assets/logo_TravelGo2.png";
 import { Link, useNavigate } from "react-router-dom";
 
 function Navbar() {
+   
   const navigate = useNavigate();
+ 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userName, setUserName] = useState("");
   const [userInitials, setUserInitials] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  
+  const checkAuthStatus = () => {
+    const token = localStorage.getItem("token");
+    const primerNombre = localStorage.getItem("primerNombre");
+    const primerApellido = localStorage.getItem("primerApellido");
 
+    console.log('🔍 Verificando sesión:', { token: !!token, nombre: primerNombre });
+
+    if (token && primerNombre && primerApellido) {
+      setIsLoggedIn(true);
+      setUserName(`${primerNombre} ${primerApellido}`);
+      const iniciales = `${primerNombre.charAt(0)}${primerApellido.charAt(0)}`.toUpperCase();
+      setUserInitials(iniciales);
+    } else {
+      setIsLoggedIn(false);
+      setUserName("");
+      setUserInitials("");
+    }
+  };
   useEffect(() => {
+     console.log('🔄 Navbar montado - Verificando sesión inicial');
+checkAuthStatus()
+   window.addEventListener('storage', checkAuthStatus);
+window.addEventListener('logout', checkAuthStatus);
+
     // Verificar si hay sesión activa
     const token = localStorage.getItem("token");
     const primerNombre = localStorage.getItem("primerNombre");
@@ -51,9 +74,10 @@ window.addEventListener('storage', handleStorageChange);
 // Cleanup
 return () => {
   window.removeEventListener('storage', handleStorageChange);
+   window.removeEventListener('logout', checkAuthStatus);
 };
 
-  }, []);
+  }, [location]);
 
   const handleProfileClick = () => {
     navigate("/UserProfile");

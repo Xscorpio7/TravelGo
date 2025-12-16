@@ -37,6 +37,7 @@ function SearchCard() {
   // Modal de login
   const [showModal, setShowModal] = useState(false);
   const [pendingBooking, setPendingBooking] = useState(null);
+  const [bookingInProgress, setBookingInProgress] = useState(false);
 
   // Cerrar sugerencias al hacer clic fuera
   useEffect(() => {
@@ -256,11 +257,19 @@ const handleSubmit = async (e) => {
     }
   };
 
-  // ✅ CORRECCIÓN PRINCIPAL: Función de reserva con verificación de autenticación
+
   const handleReservation = (flight) => {
-    console.log("🎫 Iniciando proceso de reserva para vuelo:", flight.id);
-    
-    // Preparar datos completos de la reserva
+  // ⛔ Prevenir múltiples clicks
+  if (bookingInProgress) {
+    console.warn('⚠️ Reserva ya en progreso, ignorando click adicional');
+    return;
+  }
+
+  console.log("🎫 Iniciando proceso de reserva para vuelo:", flight.id);
+  setBookingInProgress(true);
+  
+  try {
+    // Preparar datos completos de la reserva UNA SOLA VEZ
     const bookingData = {
       selectedFlight: flight,
       searchData: {
@@ -274,39 +283,44 @@ const handleSubmit = async (e) => {
       timestamp: new Date().toISOString(),
     };
     
-    // ✅ CRÍTICO: Verificar autenticación
+    // ✅ VERIFICAR AUTENTICACIÓN
     const token = localStorage.getItem('token');
     
     if (!token) {
-      console.log('🔐 Usuario NO autenticado - Guardando reserva y mostrando modal');
+      console.log('🔐 Usuario NO autenticado - Mostrando modal');
       
-      // Guardar reserva ANTES de mostrar el modal
+      // ✅ GUARDAR UNA SOLA VEZ
       const saved = bookingStorage.save(bookingData);
       
       if (saved) {
-        console.log('💾 Reserva guardada exitosamente:', bookingData);
+        console.log('💾 Reserva temporal guardada');
         setPendingBooking(bookingData);
         setShowModal(true);
       } else {
         console.error('❌ Error al guardar reserva');
         setError('Error al preparar la reserva');
       }
-    } else {
-      console.log('✅ Usuario autenticado - Continuando directamente a BookingFlow');
       
-      // Guardar datos para BookingFlow
+      // Resetear estado después de mostrar modal
+      setTimeout(() => setBookingInProgress(false), 500);
+    } else {
+      console.log('✅ Usuario autenticado - Navegando a BookingFlow');
+      
+      // ✅ GUARDAR UNA SOLA VEZ (sin datos redundantes en state)
       bookingStorage.save(bookingData);
       
-      // Navegar a BookingFlow con los datos
-      navigate('/booking', { 
-        state: { 
-          selectedFlight: flight,
-          searchData: bookingData.searchData,
-          currentStep: 1 
-        } 
-      });
+      // ✅ NAVEGAR SIN PASAR STATE (BookingFlow leerá de localStorage)
+      navigate('/booking');
+      
+      // Resetear estado después de navegar
+      setTimeout(() => setBookingInProgress(false), 1000);
     }
-  };
+  } catch (error) {
+    console.error('❌ Error en handleReservation:', error);
+    setError('Error al procesar la reserva');
+    setBookingInProgress(false);
+  }
+};
 
   return (
     <div>

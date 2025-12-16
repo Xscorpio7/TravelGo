@@ -1,19 +1,68 @@
 // src/utils/bookingStorage.js
-// Utilidad para manejar el almacenamiento temporal de reservas
+// Utilidad para manejar el almacenamiento temporal de reservas CON DEBOUNCING
 
 const BOOKING_KEY = 'pendingBooking';
 const BOOKING_EXPIRY = 30 * 60 * 1000; // 30 minutos
 
+let saveTimeout = null; // ⚡ Para debouncing
+
 const bookingStorage = {
+  /**
+   * ✅ Guardar con DEBOUNCING (previene múltiples guardados)
+   */
   save: (bookingData) => {
     try {
+      // ⚡ Cancelar guardado anterior si existe
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        console.log('⏳ Cancelando guardado anterior...');
+      }
+      
+      // ⚡ Guardar después de 100ms (si no hay más llamadas)
+      saveTimeout = setTimeout(() => {
+        const data = {
+          ...bookingData,
+          timestamp: Date.now(),
+          expiresAt: Date.now() + BOOKING_EXPIRY,
+        };
+        
+        localStorage.setItem(BOOKING_KEY, JSON.stringify(data));
+        console.log('💾 Reserva guardada en localStorage:', {
+          hasFlight: !!data.selectedFlight,
+          hasHotel: !!data.selectedHotel,
+          hasTransport: !!data.selectedTransport,
+          step: data.currentStep
+        });
+        
+        saveTimeout = null;
+      }, 100);
+      
+      return true;
+    } catch (error) {
+      console.error('❌ Error guardando reserva:', error);
+      return false;
+    }
+  },
+
+  /**
+   * ✅ Guardar INMEDIATAMENTE (sin debouncing) - usar solo cuando es crítico
+   */
+  saveNow: (bookingData) => {
+    try {
+      // Cancelar cualquier guardado pendiente
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        saveTimeout = null;
+      }
+      
       const data = {
         ...bookingData,
         timestamp: Date.now(),
         expiresAt: Date.now() + BOOKING_EXPIRY,
       };
+      
       localStorage.setItem(BOOKING_KEY, JSON.stringify(data));
-      console.log('💾 Reserva guardada en localStorage:', data);
+      console.log('💾 Reserva guardada INMEDIATAMENTE');
       return true;
     } catch (error) {
       console.error('❌ Error guardando reserva:', error);
@@ -25,7 +74,6 @@ const bookingStorage = {
     try {
       const stored = localStorage.getItem(BOOKING_KEY);
       if (!stored) {
-        // console.log('📭 No hay reserva guardada');
         return null;
       }
 
@@ -38,7 +86,6 @@ const bookingStorage = {
         return null;
       }
 
-      // Normalizar: asegurar campos esperados
       return data;
     } catch (error) {
       console.error('❌ Error recuperando reserva:', error);
@@ -48,6 +95,12 @@ const bookingStorage = {
 
   clear: () => {
     try {
+      // ⚡ Cancelar cualquier guardado pendiente
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        saveTimeout = null;
+      }
+      
       localStorage.removeItem(BOOKING_KEY);
       console.log('🗑️ Reserva limpiada');
       return true;
@@ -82,20 +135,16 @@ const bookingStorage = {
     }
   },
 
-  // --- Funciones útiles añadidas ---
   hasPendingBooking: () => {
     try {
       const data = bookingStorage.get();
       if (!data) return false;
-      // Considerar que hay reserva pendiente si hay cualquier selección importante
       const hasSelected =
         !!data.selectedFlight || !!data.selectedHotel || !!data.selectedTransport;
       const notExpired = !(data.expiresAt && Date.now() > data.expiresAt);
-      const hasPending = hasSelected && notExpired;
-      console.log('🔍 ¿Tiene reserva pendiente?', hasPending);
-      return hasPending;
+      return hasSelected && notExpired;
     } catch (err) {
-      console.warn('safe hasPendingBooking error:', err);
+      console.warn('Error en hasPendingBooking:', err);
       return false;
     }
   },
@@ -103,27 +152,20 @@ const bookingStorage = {
   getSummary: () => {
     try {
       const data = bookingStorage.get();
-      if (!data) {
-        // console.log('ℹ️ No hay resumen disponible');
-        return null;
-      }
+      if (!data) return null;
 
-      const summary = {
+      return {
         hasFlight: !!data.selectedFlight,
         hasHotel: !!data.selectedHotel,
         hasTransport: !!data.selectedTransport,
         currentStep: data.currentStep || 1,
-        destination: data.searchData?.destination || data.destination || 'N/A',
-        origin: data.searchData?.origin || data.origin || 'N/A',
-        departureDate: data.searchData?.departureDate || data.departureDate || 'N/A',
-        returnDate: data.searchData?.returnDate || data.returnDate || null,
-        adults: data.searchData?.adults ?? data.adults ?? 1,
+        destination: data.searchData?.destination || 'N/A',
+        origin: data.searchData?.origin || 'N/A',
+        departureDate: data.searchData?.departureDate || 'N/A',
+        returnDate: data.searchData?.returnDate || null,
+        adults: data.searchData?.adults ?? 1,
         raw: data,
-        summaryText: `${data.searchData?.origin || data.origin || '—'} → ${data.searchData?.destination || data.destination || '—'}`,
       };
-
-      console.log('📋 Resumen generado:', summary);
-      return summary;
     } catch (err) {
       console.error('❌ Error generando resumen:', err);
       return null;
@@ -131,6 +173,5 @@ const bookingStorage = {
   },
 };
 
-// Exportar named y default para compatibilidad con distintas importaciones
 export { bookingStorage };
 export default bookingStorage;

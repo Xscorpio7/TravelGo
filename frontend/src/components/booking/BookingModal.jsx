@@ -7,33 +7,19 @@ export default function BookingModal({ isOpen, onClose, bookingData }) {
 
   if (!isOpen) return null;
 
-  const handleLogin = () => {
-    // ✅ IMPORTANTE: Guardar TODA la información antes de navegar
-    if (bookingData) {
-      const success = bookingStorage.save(bookingData);
-      if (success) {
-        console.log('💾 Reserva guardada completa antes de login:', bookingData);
-      } else {
-        console.error('❌ Error al guardar reserva antes de login');
-      }
-    }
-    onClose();
-    navigate('/login', { state: { from: 'booking' } }); // ✅ Indicar origen
-  };
+ const handleLogin = () => {
+  // ✅ NO guardar nuevamente - ya está guardado
+  console.log('🔐 Navegando a login con reserva ya guardada');
+  onClose();
+  navigate('/login', { state: { from: 'booking' } });
+};
 
-  const handleRegister = () => {
-    // ✅ IMPORTANTE: Guardar TODA la información antes de navegar
-    if (bookingData) {
-      const success = bookingStorage.save(bookingData);
-      if (success) {
-        console.log('💾 Reserva guardada completa antes de registro:', bookingData);
-      } else {
-        console.error('❌ Error al guardar reserva antes de registro');
-      }
-    }
-    onClose();
-    navigate('/register', { state: { from: 'booking' } }); // ✅ Indicar origen
-  };
+const handleRegister = () => {
+  // ✅ NO guardar nuevamente - ya está guardado
+  console.log('📝 Navegando a registro con reserva ya guardada');
+  onClose();
+  navigate('/register', { state: { from: 'booking' } });
+};
 
   const summary = bookingData ? {
     origin: bookingData.searchData?.origin || 'N/A',

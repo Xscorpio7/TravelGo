@@ -43,32 +43,63 @@ export default function BookingFlow() {
   }, []);
 
   const loadBookingData = () => {
+  console.log('📋 BookingFlow: Cargando datos de reserva...');
+  
+  try {
+    // ✅ Verificar autenticación
     const token = localStorage.getItem('token');
     if (!token) {
+      console.warn('⚠️ No hay token, redirigiendo a login');
       navigate('/login', { state: { from: 'booking' }, replace: true });
       return;
     }
 
-    if (location.state?.selectedFlight) {
+    // ✅ PRIORIDAD 1: Leer de localStorage (lo más reciente)
+    const savedBooking = bookingStorage.get();
+    
+    if (savedBooking?.selectedFlight) {
+      console.log('✅ Reserva encontrada en localStorage:', savedBooking);
+      
+      setSelectedFlight(savedBooking.selectedFlight);
+      setSearchData(savedBooking.searchData || {});
+      setSelectedHotel(savedBooking.selectedHotel || null);
+      setSelectedTransport(savedBooking.selectedTransport || null);
+      setCurrentStep(savedBooking.currentStep || 1);
+      
+    } 
+    // ✅ PRIORIDAD 2: Si no hay nada en storage, verificar location.state
+    else if (location.state?.selectedFlight) {
+      console.log('✅ Reserva encontrada en location.state');
+      
       setSelectedFlight(location.state.selectedFlight);
-      setSearchData(location.state.searchData);
+      setSearchData(location.state.searchData || {});
+      
+      // Guardar en storage para persistencia
       bookingStorage.save({
         selectedFlight: location.state.selectedFlight,
         searchData: location.state.searchData,
+        currentStep: 1,
       });
-    } else {
-      const savedBooking = bookingStorage.get();
-      if (!savedBooking || !savedBooking.selectedFlight) {
-        setError('No hay reserva pendiente');
-        setTimeout(() => navigate('/'), 3000);
-        return;
-      }
-      setSelectedFlight(savedBooking.selectedFlight);
-      setSearchData(savedBooking.searchData);
-      setSelectedHotel(savedBooking.selectedHotel || null);
-      setSelectedTransport(savedBooking.selectedTransport || null);
+    } 
+    // ❌ No hay datos en ningún lado
+    else {
+      console.error('❌ No hay reserva pendiente');
+      setError('No hay reserva pendiente. Serás redirigido al inicio.');
+      setTimeout(() => navigate('/'), 3000);
+      return;
     }
-  };
+
+    console.log('✅ Datos de reserva cargados correctamente');
+    
+  } catch (err) {
+    console.error('❌ Error al cargar reserva:', err);
+    setError('Error al cargar la reserva');
+  } finally {
+    // ✅ CRÍTICO: SIEMPRE ejecutar esto
+    console.log('🏁 Finalizando carga - setLoading(false)');
+    setLoading(false);
+  }
+};
 
   const loadHotels = async () => {
     if (!searchData?.destination) {
